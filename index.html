@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>กสทช. เขต 16 | NR2600 Interference Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Sarabun','Segoe UI',sans-serif; background:#0A1628; color:#E2E8F0; font-size:14px; }
+
+/* ─── HEADER ─────────────────────────────────────── */
+.header {
+  background:linear-gradient(135deg,#1B2D5B 0%,#0F1F40 100%);
+  padding:18px 28px; border-bottom:3px solid #F4A261;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.header h1 { font-size:20px; font-weight:800; color:#fff; }
+.header p  { font-size:12px; color:#94A3B8; margin-top:3px; }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+.badge-wk  { background:#F4A261; color:#12213F; padding:4px 14px; border-radius:20px; font-size:12px; font-weight:700; }
+.badge-r16 { background:#2EC4B6; color:#0A1628; padding:4px 14px; border-radius:20px; font-size:12px; font-weight:700; }
+
+/* ─── UPLOAD ZONE ─────────────────────────────────── */
+.upload-wrap { padding:12px 28px 0; }
+.drop-zone {
+  border:2px dashed #334155; border-radius:12px;
+  padding:14px 20px; background:#111D33;
+  display:flex; align-items:center; gap:16px; cursor:pointer;
+  transition:all .25s;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color:#2EC4B6; background:#0F2030;
+}
+.drop-icon { font-size:28px; flex-shrink:0; }
+.drop-text { flex:1; }
+.drop-text strong { font-size:13px; color:#CBD5E1; }
+.drop-text p { font-size:11px; color:#64748B; margin-top:2px; }
+.drop-btn {
+  background:#1B2D5B; color:#7DD3FC; border:1px solid #2563EB;
+  padding:7px 16px; border-radius:8px; font-size:12px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:background .2s;
+}
+.drop-btn:hover { background:#2563EB; color:#fff; }
+#fileInput { display:none; }
+
+.upload-status {
+  margin-top:8px; font-size:12px; padding:6px 14px;
+  border-radius:8px; display:none;
+}
+.upload-status.ok  { background:#14532D; color:#86EFAC; display:block; }
+.upload-status.err { background:#7F1D1D; color:#FCA5A5; display:block; }
+
+/* ─── ALERT ──────────────────────────────────────── */
+.alert-wrap { padding:12px 28px 0; }
+.alert { background:#3B1A08; border:1px solid #F4A261; border-radius:10px; padding:12px 18px;
+         display:flex; align-items:flex-start; gap:12px; }
+.alert-icon { font-size:18px; margin-top:1px; }
+.alert-body { font-size:12.5px; color:#FED7AA; line-height:1.6; }
+.alert-body strong { color:#F4A261; }
+.crit-tag { display:inline-block; background:#7F1D1D; color:#FCA5A5; padding:1px 8px;
+            border-radius:10px; font-size:11px; font-weight:700; margin:0 2px; }
+
+/* ─── KPI ────────────────────────────────────────── */
+.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; padding:14px 28px; }
+.kpi { background:#1E293B; border-radius:10px; padding:14px 16px;
+       border-left:4px solid #334155; box-shadow:0 3px 10px rgba(0,0,0,.35);
+       transition:transform .2s; }
+.kpi:hover { transform:translateY(-2px); }
+.kpi.c-amber { border-left-color:#F4A261; }
+.kpi.c-red   { border-left-color:#E63946; }
+.kpi.c-teal  { border-left-color:#2EC4B6; }
+.kpi.c-green { border-left-color:#2A9D8F; }
+.kpi.c-orange{ border-left-color:#F97316; }
+.kpi-lbl { font-size:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px; }
+.kpi-num { font-size:28px; font-weight:800; }
+.kpi.c-amber .kpi-num  { color:#F4A261; }
+.kpi.c-red   .kpi-num  { color:#E63946; }
+.kpi.c-teal  .kpi-num  { color:#2EC4B6; }
+.kpi.c-green .kpi-num  { color:#2A9D8F; }
+.kpi.c-orange .kpi-num { color:#F97316; }
+.kpi-sub { font-size:10px; color:#64748B; margin-top:3px; }
+
+/* ─── PROVINCE CARDS ─────────────────────────────── */
+.prov-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; padding:0 28px 14px; }
+.pcard {
+  background:#1E293B; border-radius:12px; padding:16px;
+  box-shadow:0 3px 12px rgba(0,0,0,.3); position:relative; overflow:hidden;
+  border-top:4px solid #334155;
+}
+.pcard.pc-bad    { border-top-color:#E63946; }
+.pcard.pc-warn   { border-top-color:#F97316; }
+.pcard.pc-med    { border-top-color:#F4A261; }
+.pcard.pc-ok     { border-top-color:#2EC4B6; }
+.pcard.pc-good   { border-top-color:#2A9D8F; }
+.pcard-name { font-size:14px; font-weight:800; color:#F1F5F9; margin-bottom:10px; }
+.pcard-stats { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+.pstat-box { background:#0F172A; border-radius:6px; padding:7px 9px; }
+.pstat-lbl { font-size:9px; color:#64748B; text-transform:uppercase; }
+.pstat-val { font-size:16px; font-weight:800; }
+.pstat-val.sv-red   { color:#E63946; }
+.pstat-val.sv-teal  { color:#2EC4B6; }
+.pstat-val.sv-amber { color:#F4A261; }
+.pstat-val.sv-green { color:#2A9D8F; }
+.pbar-wrap { background:#0F172A; border-radius:6px; height:6px; overflow:hidden; margin-bottom:5px; }
+.pbar      { height:6px; border-radius:6px; transition:width .8s ease; }
+.pcard-pct { display:flex; justify-content:space-between; font-size:10px; }
+.pcard-sev { display:flex; gap:4px; flex-wrap:wrap; margin-top:8px; }
+.sev-dot { font-size:10px; padding:1px 7px; border-radius:8px; font-weight:700; }
+.sd-crit { background:#7F1D1D; color:#FCA5A5; }
+.sd-high { background:#78350F; color:#FCD34D; }
+.sd-med  { background:#713F12; color:#FDE68A; }
+.sd-low  { background:#14532D; color:#86EFAC; }
+
+/* ─── GRID ───────────────────────────────────────── */
+.g2 { display:grid; grid-template-columns:1.8fr 1fr; gap:16px; padding:0 28px 16px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; padding:0 28px 16px; }
+.gfull { padding:0 28px 16px; }
+
+/* ─── CARD ───────────────────────────────────────── */
+.card { background:#1E293B; border-radius:12px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.3); }
+.ct { font-size:13px; font-weight:700; color:#CBD5E1; margin-bottom:14px;
+      padding-bottom:9px; border-bottom:1px solid #334155;
+      display:flex; align-items:center; gap:8px; }
+.ct .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* ─── SEARCH BOX ─────────────────────────────────── */
+.search-wrap { margin-bottom:10px; }
+.search-box {
+  width:100%; padding:8px 14px 8px 36px; border-radius:8px;
+  background:#0F172A; border:1px solid #334155; color:#E2E8F0;
+  font-size:13px; font-family:inherit; outline:none;
+  transition:border-color .2s;
+}
+.search-box:focus { border-color:#2EC4B6; }
+.search-box::placeholder { color:#475569; }
+.search-icon-wrap { position:relative; }
+.search-icon-wrap::before {
+  content:'🔍'; position:absolute; left:10px; top:50%;
+  transform:translateY(-50%); font-size:14px; pointer-events:none;
+}
+
+/* ─── TABLE ──────────────────────────────────────── */
+.dtable { width:100%; border-collapse:collapse; font-size:12px; }
+.dtable th {
+  background:#0F172A; color:#94A3B8; padding:8px 10px;
+  text-align:left; font-weight:600; text-transform:uppercase; font-size:10px;
+  position:sticky; top:0; z-index:1;
+}
+.dtable td { padding:7px 10px; border-bottom:1px solid #253347; color:#CBD5E1; }
+.dtable tr:hover td { background:#253347; }
+.dtable tr:last-child td { border-bottom:none; }
+.tscroll { max-height:380px; overflow-y:auto; border-radius:8px; border:1px solid #253347; }
+.no-result { text-align:center; color:#475569; padding:24px; font-size:13px; }
+
+/* severity badges */
+.sb { display:inline-block; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; }
+.sb-crit { background:#7F1D1D; color:#FCA5A5; }
+.sb-high { background:#78350F; color:#FCD34D; }
+.sb-med  { background:#713F12; color:#FDE68A; }
+.sb-low  { background:#14532D; color:#86EFAC; }
+
+/* ─── FILTER TABS ────────────────────────────────── */
+.filter-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+.ftab {
+  padding:5px 14px; border-radius:20px; font-size:11px; font-weight:600;
+  cursor:pointer; border:1px solid #334155; background:#1E293B; color:#94A3B8;
+  transition:all .2s;
+}
+.ftab.active, .ftab:hover { background:#2EC4B6; color:#0A1628; border-color:#2EC4B6; }
+.ftab.fc-crit.active { background:#E63946; border-color:#E63946; color:#fff; }
+.ftab.fc-high.active { background:#F97316; border-color:#F97316; color:#fff; }
+.result-count { margin-left:auto; font-size:11px; color:#64748B; }
+
+/* ─── FOOTER ─────────────────────────────────────── */
+.footer { text-align:center; padding:12px; color:#475569; font-size:11px;
+          border-top:1px solid #1E293B; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>📡 กสทช. เขต 16 — NR2600 Interference Dashboard</h1>
+    <p>จังหวัด: ราชบุรี · นครปฐม · เพชรบุรี · สมุทรสาคร · สมุทรสงคราม &nbsp;|&nbsp; ติดตาม AWN BR288-2568</p>
+  </div>
+  <div class="header-right">
+    <span class="badge-r16">🗂 กสทช. เขต 16</span>
+    <span class="badge-wk" id="wkBadge">📅 wk12/2026 | 16–22 มี.ค. 2569</span>
+  </div>
+</div>
+
+<!-- UPLOAD ZONE -->
+<div class="upload-wrap">
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">📂</div>
+    <div class="drop-text">
+      <strong>อัปเดต Dashboard จากไฟล์ Excel ใหม่</strong>
+      <p>ลากไฟล์ <code>Weekly_NR2600 Interference_*.xlsx</code> มาวางที่นี่ หรือคลิกปุ่มเลือกไฟล์</p>
+    </div>
+    <button class="drop-btn" onclick="document.getElementById('fileInput').click()">📁 เลือกไฟล์ Excel</button>
+    <button class="drop-btn" style="background:#1a1a2e;border-color:#475569;color:#94A3B8" onclick="clearCache()" title="ล้าง Cache และโหลด Baseline">🗑 ล้าง Cache</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
+  <div class="upload-status" id="uploadStatus"></div>
+</div>
+
+<!-- ALERT -->
+<div class="alert-wrap">
+  <div class="alert" id="alertBox">
+    <span class="alert-icon">🚨</span>
+    <div class="alert-body" id="alertBody">
+      <strong>Cell วิกฤต (INF ≥ -90 dBm) 3 Cell ใน 2 จังหวัด:</strong>
+      <span class="crit-tag">สมุทรสาคร 2 Cell</span>
+      <span class="crit-tag">เพชรบุรี 1 Cell</span>
+      &nbsp;— Site รุนแรงที่สุด: <strong>สนามกอล์ฟเอกชัย (EKGCMN2613) สมุทรสาคร INF = -84.15 dBm</strong> &nbsp;|&nbsp;
+      จังหวัดที่มี % Fixed ต่ำ: <strong>เพชรบุรี 18.2%</strong>, <strong>สมุทรสาคร 23.2%</strong> — ต้องเร่งแก้ไข
+    </div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi c-amber">
+    <div class="kpi-lbl">Site อ้างอิง (ref)</div>
+    <div class="kpi-num" id="kpiRef">218</div>
+    <div class="kpi-sub">ณ 02 มิ.ย. 2568</div>
+  </div>
+  <div class="kpi c-red">
+    <div class="kpi-lbl">Site คงเหลือ</div>
+    <div class="kpi-num" id="kpiRemain">158</div>
+    <div class="kpi-sub" id="kpiRemainSub">72.5% ของ ref | wk12</div>
+  </div>
+  <div class="kpi c-teal">
+    <div class="kpi-lbl">% Fixed สะสม</div>
+    <div class="kpi-num" id="kpiFixed">27.5%</div>
+    <div class="kpi-sub" id="kpiFixedSub">60 Site แก้ไขแล้ว</div>
+  </div>
+  <div class="kpi c-orange">
+    <div class="kpi-lbl">Cell Active</div>
+    <div class="kpi-num" id="kpiCell">204</div>
+    <div class="kpi-sub" id="kpiCellSub">จาก 306 cell ทั้งหมด</div>
+  </div>
+  <div class="kpi c-green">
+    <div class="kpi-lbl">Cell วิกฤต ≥ -90</div>
+    <div class="kpi-num" id="kpiCrit">3</div>
+    <div class="kpi-sub" id="kpiCritSub">สมุทรสาคร 2 · เพชรบุรี 1</div>
+  </div>
+</div>
+
+<!-- PROVINCE CARDS -->
+<div class="prov-cards">
+  <!-- สมุทรสาคร -->
+  <div class="pcard pc-bad">
+    <div class="pcard-name">🔴 สมุทรสาคร</div>
+    <div class="pcard-stats">
+      <div class="pstat-box">
+        <div class="pstat-lbl">Site คงเหลือ</div>
+        <div class="pstat-val sv-red">73 <span style="font-size:11px;color:#64748B">/ 95</span></div>
+      </div>
+      <div class="pstat-box">
+        <div class="pstat-lbl">Cell Active</div>
+        <div class="pstat-val sv-red">98</div>
+      </div>
+    </div>
+    <div class="pbar-wrap"><div class="pbar" style="width:23.2%;background:#E63946"></div></div>
+    <div class="pcard-pct"><span style="color:#94A3B8">% Fixed</span><strong style="color:#E63946">23.2%</strong></div>
+    <div class="pcard-sev">
+      <span class="sev-dot sd-crit">🔴 2</span>
+      <span class="sev-dot sd-high">🟠 9</span>
+      <span class="sev-dot sd-med">🟡 35</span>
+      <span class="sev-dot sd-low">🟢 52</span>
+    </div>
+  </div>
+  <!-- นครปฐม -->
+  <div class="pcard pc-warn">
+    <div class="pcard-name">🟠 นครปฐม</div>
+    <div class="pcard-stats">
+      <div class="pstat-box">
+        <div class="pstat-lbl">Site คงเหลือ</div>
+        <div class="pstat-val sv-amber">55 <span style="font-size:11px;color:#64748B">/ 78</span></div>
+      </div>
+      <div class="pstat-box">
+        <div class="pstat-lbl">Cell Active</div>
+        <div class="pstat-val sv-amber">73</div>
+      </div>
+    </div>
+    <div class="pbar-wrap"><div class="pbar" style="width:29.5%;background:#F97316"></div></div>
+    <div class="pcard-pct"><span style="color:#94A3B8">% Fixed</span><strong style="color:#F97316">29.5%</strong></div>
+    <div class="pcard-sev">
+      <span class="sev-dot sd-high">🟠 5</span>
+      <span class="sev-dot sd-med">🟡 24</span>
+      <span class="sev-dot sd-low">🟢 44</span>
+    </div>
+  </div>
+  <!-- ราชบุรี -->
+  <div class="pcard pc-med">
+    <div class="pcard-name">🟡 ราชบุรี</div>
+    <div class="pcard-stats">
+      <div class="pstat-box">
+        <div class="pstat-lbl">Site คงเหลือ</div>
+        <div class="pstat-val sv-amber">18 <span style="font-size:11px;color:#64748B">/ 30</span></div>
+      </div>
+      <div class="pstat-box">
+        <div class="pstat-lbl">Cell Active</div>
+        <div class="pstat-val sv-amber">20</div>
+      </div>
+    </div>
+    <div class="pbar-wrap"><div class="pbar" style="width:40%;background:#F4A261"></div></div>
+    <div class="pcard-pct"><span style="color:#94A3B8">% Fixed</span><strong style="color:#F4A261">40.0%</strong></div>
+    <div class="pcard-sev">
+      <span class="sev-dot sd-high">🟠 2</span>
+      <span class="sev-dot sd-med">🟡 6</span>
+      <span class="sev-dot sd-low">🟢 12</span>
+    </div>
+  </div>
+  <!-- สมุทรสงคราม -->
+  <div class="pcard pc-ok">
+    <div class="pcard-name">🔵 สมุทรสงคราม</div>
+    <div class="pcard-stats">
+      <div class="pstat-box">
+        <div class="pstat-lbl">Site คงเหลือ</div>
+        <div class="pstat-val sv-teal">3 <span style="font-size:11px;color:#64748B">/ 4</span></div>
+      </div>
+      <div class="pstat-box">
+        <div class="pstat-lbl">Cell Active</div>
+        <div class="pstat-val sv-teal">3</div>
+      </div>
+    </div>
+    <div class="pbar-wrap"><div class="pbar" style="width:25%;background:#2EC4B6"></div></div>
+    <div class="pcard-pct"><span style="color:#94A3B8">% Fixed</span><strong style="color:#2EC4B6">25.0%</strong></div>
+    <div class="pcard-sev">
+      <span class="sev-dot sd-med">🟡 1</span>
+      <span class="sev-dot sd-low">🟢 2</span>
+    </div>
+  </div>
+  <!-- เพชรบุรี -->
+  <div class="pcard pc-bad">
+    <div class="pcard-name">🔴 เพชรบุรี</div>
+    <div class="pcard-stats">
+      <div class="pstat-box">
+        <div class="pstat-lbl">Site คงเหลือ</div>
+        <div class="pstat-val sv-red">9 <span style="font-size:11px;color:#64748B">/ 11</span></div>
+      </div>
+      <div class="pstat-box">
+        <div class="pstat-lbl">Cell Active</div>
+        <div class="pstat-val sv-red">10</div>
+      </div>
+    </div>
+    <div class="pbar-wrap"><div class="pbar" style="width:18.2%;background:#E63946"></div></div>
+    <div class="pcard-pct"><span style="color:#94A3B8">% Fixed</span><strong style="color:#E63946">18.2%</strong></div>
+    <div class="pcard-sev">
+      <span class="sev-dot sd-crit">🔴 1</span>
+      <span class="sev-dot sd-high">🟠 1</span>
+      <span class="sev-dot sd-med">🟡 3</span>
+      <span class="sev-dot sd-low">🟢 5</span>
+    </div>
+  </div>
+</div>
+
+<!-- ROW: Trend + Severity -->
+<div class="g2">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#E63946"></span>แนวโน้ม Site คงเหลือ รายสัปดาห์ (มิ.ย. 2568 – ปัจจุบัน)</div>
+    <div style="position:relative;height:220px;"><canvas id="trendChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#F4A261"></span>ระดับความรุนแรง Interference แยกจังหวัด (ล่าสุด)</div>
+    <div style="position:relative;height:220px;"><canvas id="sevChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW: Active cells trend + % Fixed -->
+<div class="g2">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#A78BFA"></span>จำนวน Cell Active รายสัปดาห์ (ช่วง 5 สัปดาห์ล่าสุด)</div>
+    <div style="position:relative;height:200px;"><canvas id="cellTrend"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#2EC4B6"></span>อัตราการแก้ไข % Fixed เทียบทุกจังหวัด</div>
+    <div style="position:relative;height:200px;"><canvas id="fixedChart"></canvas></div>
+  </div>
+</div>
+
+<!-- CELL TABLE -->
+<div class="gfull">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#F97316"></span>รายการ Cell Interference ที่ยังคงเหลือ — คลิกกรองหรือพิมพ์ค้นหา</div>
+
+    <!-- SEARCH BOX -->
+    <div class="search-wrap search-icon-wrap">
+      <input type="text" id="searchBox" class="search-box"
+             placeholder="🔍  ค้นหา... จังหวัด, Site Code, ชื่อ Site, Cell Name, อำเภอ"
+             oninput="onSearch(this.value)">
+    </div>
+
+    <!-- FILTER TABS -->
+    <div class="filter-row" id="filterRow">
+      <span class="ftab active" data-filter="all" onclick="setFilter('all',this)">ทั้งหมด</span>
+      <span class="ftab fc-crit" data-filter="crit" onclick="setFilter('crit',this)">🔴 วิกฤต ≥-90</span>
+      <span class="ftab fc-high" data-filter="high" onclick="setFilter('high',this)">🟠 สูง -95~-90</span>
+      <span class="ftab" data-filter="med"  onclick="setFilter('med',this)">🟡 กลาง -100~-95</span>
+      <span class="ftab" data-filter="low"  onclick="setFilter('low',this)">🟢 ต่ำ -105~-100</span>
+      <span class="ftab" data-filter="sk"   onclick="setFilter('sk',this)">สมุทรสาคร</span>
+      <span class="ftab" data-filter="np"   onclick="setFilter('np',this)">นครปฐม</span>
+      <span class="ftab" data-filter="rb"   onclick="setFilter('rb',this)">ราชบุรี</span>
+      <span class="ftab" data-filter="pb"   onclick="setFilter('pb',this)">เพชรบุรี</span>
+      <span class="ftab" data-filter="ss"   onclick="setFilter('ss',this)">สมุทรสงคราม</span>
+      <span class="result-count" id="resultCount"></span>
+    </div>
+
+    <div class="tscroll">
+      <table class="dtable" id="cellTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>จังหวัด</th>
+            <th>Site Code</th>
+            <th>ชื่อ Site</th>
+            <th>Cell Name</th>
+            <th>อำเภอ</th>
+            <th>ระดับ</th>
+            <th>INF PRB0-30 (dBm)</th>
+            <th>INF PRB65-105 (dBm)</th>
+          </tr>
+        </thead>
+        <tbody id="cellBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerTxt">
+  กสทช. เขต 16 | NR2600 Interference Tracking | AWN BR288-2568 | ข้อมูล ณ wk12/2026 (22 มีนาคม 2569)
+</div>
+
+<!-- ═══════════════════════ SCRIPTS ═══════════════════════ -->
+<script>
+Chart.defaults.color = '#94A3B8';
+Chart.defaults.borderColor = '#1E293B';
+const G = '#1E3A5F';
+
+// ── STATIC BASELINE DATA ────────────────────────────────
+const wkLabels = [
+  "Ref\nมิ.ย.'68","Sep W1","Sep W2","Sep W3","Sep W4",
+  "Oct W1","Oct W2","Oct W3","Oct W4","Nov W1",
+  "Nov W2","Nov W3","Nov W4","Dec W1","Dec W2",
+  "Dec W3","Dec W4","Jan W1\n'69","Jan W2","Jan W3",
+  "Jan W4","Feb W1","Feb W2","Feb W3","Feb W4",
+  "Mar W1","Mar W2","Mar W3","Mar W4\n(wk12)"
+];
+
+const site16 = {
+  "ราชบุรี":      [30,25,26,25,19,21,23,20,19,19,22,20,21,20,20,17,19,20,18,19,26,21,22,20,21,19,21,21,17,18],
+  "นครปฐม":      [78,67,66,60,52,63,63,63,58,61,57,51,52,56,56,46,55,52,46,51,64,52,54,56,54,57,56,55,51,55],
+  "เพชรบุรี":     [11,10,10,9,10,9,9,9,9,9,9,9,9,10,10,9,10,9,8,8,9,8,8,9,10,10,10,10,9,9],
+  "สมุทรสาคร":   [95,91,83,88,89,91,87,90,78,88,86,84,81,87,90,77,81,80,77,78,90,79,77,77,77,76,76,80,77,73],
+  "สมุทรสงคราม": [4,3,3,4,3,4,4,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,3,3,3,4,3],
+};
+const total16 = wkLabels.map((_,i) =>
+  Object.values(site16).reduce((s,arr) => s + arr[i], 0)
+);
+
+const PCOL = {
+  "ราชบุรี":     "#F4A261",
+  "นครปฐม":     "#F97316",
+  "เพชรบุรี":    "#E63946",
+  "สมุทรสาคร":  "#DC2626",
+  "สมุทรสงคราม":"#2EC4B6",
+};
+
+// Recent 5 weeks cell counts
+const cellWks = ["wk08","wk09","wk10","wk11","wk12"];
+const cellData = {
+  "ราชบุรี":      [22,24,24,20,20],
+  "นครปฐม":      [76,76,73,67,73],
+  "เพชรบุรี":     [11,11,11,10,10],
+  "สมุทรสาคร":   [101,102,106,102,98],
+  "สมุทรสงคราม": [3,4,4,4,3],
+};
+
+// Severity by province (wk12)
+let sevProvinces = ["สมุทรสาคร","นครปฐม","ราชบุรี","เพชรบุรี","สมุทรสงคราม"];
+let sevCrit = [2,0,0,1,0];
+let sevHigh = [9,5,2,1,0];
+let sevMed  = [35,24,6,3,1];
+let sevLow  = [52,44,12,5,2];
+
+// Static cell rows (wk12 baseline)
+const cellRowsBase = [
+  {prov:"สมุทรสาคร",code:"EKGCM",name:"สนามกอล์ฟเอกชัย",cell:"EKGCMN2613",amph:"เมืองสมุทรสาคร",sev:"crit",inf:-84.15,inf2:-95.82},
+  {prov:"สมุทรสาคร",code:"WTASO",name:"วัดท่าเสา",cell:"WTASON2611",amph:"กระทุ่มแบน",sev:"crit",inf:-88.28,inf2:-96.14},
+  {prov:"เพชรบุรี", code:"BNKGM",name:"บ้านหนองควง",cell:"BNKGMN2614",amph:"เมืองเพชรบุรี",sev:"crit",inf:-85.06,inf2:-93.44},
+  {prov:"สมุทรสาคร",code:"BNGPR",name:"ถนนบางปลา",cell:"BNGPRN261A",amph:"เมืองสมุทรสาคร",sev:"high",inf:-94.17,inf2:-102.85},
+  {prov:"สมุทรสาคร",code:"KTB1M",name:"กระทุ่มแบน 1",cell:"KTB1MN2611",amph:"กระทุ่มแบน",sev:"high",inf:-94.25,inf2:-101.33},
+  {prov:"สมุทรสาคร",code:"STP1M",name:"ซอยถนนชุมชนพัฒนา 1",cell:"STP1MN2613",amph:"เมืองสมุทรสาคร",sev:"high",inf:-94.42,inf2:-103.17},
+  {prov:"สมุทรสาคร",code:"NGPAO",name:"หนองพะอง",cell:"NGPAON2613",amph:"กระทุ่มแบน",sev:"high",inf:-94.42,inf2:-102.44},
+  {prov:"สมุทรสาคร",code:"KTB1M",name:"กระทุ่มแบน 1",cell:"KTB1MN2612",amph:"กระทุ่มแบน",sev:"high",inf:-93.54,inf2:-101.96},
+  {prov:"เพชรบุรี", code:"TMRGM",name:"ถ้ำรงค์",cell:"TMRGMN2611",amph:"บ้านลาด",sev:"high",inf:-94.94,inf2:-103.21},
+  {prov:"นครปฐม",  code:"BPSIM",name:"บางภาษี",cell:"BPSIMN2611",amph:"บางเลน",sev:"high",inf:-94.06,inf2:-102.88},
+  {prov:"นครปฐม",  code:"BPSIM",name:"บางภาษี",cell:"BPSIMN2613",amph:"บางเลน",sev:"high",inf:-93.96,inf2:-102.71},
+  {prov:"นครปฐม",  code:"LYFMM",name:"ตลาดน้ำลำพญา",cell:"LYFMMN2613",amph:"บางเลน",sev:"high",inf:-93.13,inf2:-101.55},
+  {prov:"นครปฐม",  code:"TKRCT",name:"วัดท่ากระชับ",cell:"TKRCTN2613",amph:"นครชัยศรี",sev:"high",inf:-92.55,inf2:-100.89},
+  {prov:"นครปฐม",  code:"NGPLM",name:"หนองปลาไหล",cell:"NGPLMN2612",amph:"กำแพงแสน",sev:"high",inf:-94.84,inf2:-103.52},
+  {prov:"ราชบุรี", code:"BNRIM",name:"บ้านไร่",cell:"BNRIMN2611",amph:"เมืองราชบุรี",sev:"high",inf:-90.66,inf2:-99.78},
+  {prov:"ราชบุรี", code:"KPYIM",name:"กรับใหญ่",cell:"KPYIMN2614",amph:"บ้านโป่ง",sev:"high",inf:-92.98,inf2:-101.44},
+  {prov:"สมุทรสาคร",code:"PS87M",name:"เพชรเกษมซอย 87",cell:"PS87MN2612",amph:"กระทุ่มแบน",sev:"high",inf:-91.57,inf2:-100.22},
+  {prov:"สมุทรสาคร",code:"TAASM",name:"ท่าทราย",cell:"TAASMN2612",amph:"เมืองสมุทรสาคร",sev:"high",inf:-93.21,inf2:-101.66},
+  {prov:"สมุทรสาคร",code:"SBJTM",name:"ซอยศูนย์ฝึกเบญจรงค์",cell:"SBJTMN2611",amph:"เมืองสมุทรสาคร",sev:"high",inf:-93.62,inf2:-102.19},
+  {prov:"สมุทรสาคร",code:"KNPTW",name:"คลองน้อยพันธุวงศ์",cell:"KNPTWN2613",amph:"กระทุ่มแบน",sev:"high",inf:-92.03,inf2:-100.78},
+  {prov:"นครปฐม",  code:"BUWNM",name:"บัวหวั่น",cell:"BUWNMN2614",amph:"บางเลน",sev:"med",inf:-104.91,inf2:-114.24},
+  {prov:"เพชรบุรี", code:"SAPG5",name:"สระพัง 5 บีม",cell:"SAPG5U2611",amph:"เขาย้อย",sev:"med",inf:-104.86,inf2:-110.54},
+  {prov:"สมุทรสาคร",code:"ISKN5",name:"นิคมอุตสาหกรรมสมุทรสาครซอย 5",cell:"ISKN5N2611",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.80,inf2:-111.23},
+  {prov:"ราชบุรี", code:"WTDTK",name:"วัดดอนตะโก",cell:"WTDTKN2613",amph:"เมืองราชบุรี",sev:"low",inf:-104.77,inf2:-110.96},
+  {prov:"นครปฐม",  code:"BPSIM",name:"บางภาษี",cell:"BPSIMN2612",amph:"บางเลน",sev:"low",inf:-104.74,inf2:-111.91},
+  {prov:"สมุทรสาคร",code:"SLRJM",name:"สวนหลวงร่วมใจ",cell:"SLRJMN2613",amph:"กระทุ่มแบน",sev:"low",inf:-104.69,inf2:-106.70},
+  {prov:"สมุทรสาคร",code:"BGPAM",name:"บางปลา",cell:"BGPAMN2612",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.56,inf2:-106.19},
+  {prov:"นครปฐม",  code:"TGPMM",name:"ทุ่งพระเมรุ",cell:"TGPMMN2613",amph:"เมืองนครปฐม",sev:"low",inf:-104.55,inf2:-107.68},
+  {prov:"นครปฐม",  code:"TLBLM",name:"ตลาด บางเลน",cell:"TLBLMN2612",amph:"บางเลน",sev:"low",inf:-104.50,inf2:-111.66},
+  {prov:"นครปฐม",  code:"KTL9M",name:"ซอยกระทุ่มล้ม 9",cell:"KTL9MN2613",amph:"สามพราน",sev:"low",inf:-104.44,inf2:-110.02},
+  {prov:"นครปฐม",  code:"WGTKM",name:"วังตะกู",cell:"WGTKMN2613",amph:"เมืองนครปฐม",sev:"low",inf:-104.41,inf2:-113.46},
+  {prov:"สมุทรสาคร",code:"WPCRM",name:"วัดป่าชัยรงษี",cell:"WPCRMN2612",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.40,inf2:-108.07},
+  {prov:"สมุทรสาคร",code:"WPTWM",name:"วัดพันธุวงษ์",cell:"WPTWMN2612",amph:"กระทุ่มแบน",sev:"low",inf:-104.40,inf2:-109.32},
+  {prov:"สมุทรสาคร",code:"KGKUM",name:"คลองครุ",cell:"KGKUMN2612",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.32,inf2:-107.00},
+  {prov:"ราชบุรี", code:"DTTKM",name:"ด่านทับตะโก",cell:"DTTKMN2613",amph:"จอมบึง",sev:"low",inf:-104.27,inf2:-114.39},
+  {prov:"สมุทรสาคร",code:"OMNIM",name:"อ้อมน้อย",cell:"OMNIMN2613",amph:"กระทุ่มแบน",sev:"low",inf:-104.27,inf2:-107.40},
+  {prov:"สมุทรสาคร",code:"DKDEM",name:"ดอนไก่ดี",cell:"DKDEMN2611",amph:"กระทุ่มแบน",sev:"low",inf:-104.16,inf2:-107.75},
+  {prov:"ราชบุรี", code:"LTLFM",name:"ตลาดน้ำเหล่าตั๊กลัก",cell:"LTLFMN2611",amph:"ดำเนินสะดวก",sev:"low",inf:-104.12,inf2:-112.05},
+  {prov:"สมุทรสาคร",code:"TKJRM",name:"ถนนเทพกาญจนา",cell:"TKJRMN2612",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.06,inf2:-109.10},
+  {prov:"นครปฐม",  code:"YMLMM",name:"แยกมาลัยแมน",cell:"YMLMMN2612",amph:"เมืองนครปฐม",sev:"low",inf:-103.92,inf2:-111.67},
+  {prov:"ราชบุรี", code:"NPO1M",name:"หนองโพ 1",cell:"NPO1MN2612",amph:"โพธาราม",sev:"low",inf:-103.87,inf2:-109.12},
+  {prov:"นครปฐม",  code:"SLY9M",name:"ศาลายา ซอย 9",cell:"SLY9MN2611",amph:"พุทธมณฑล",sev:"low",inf:-103.87,inf2:-108.39},
+  {prov:"สมุทรสาคร",code:"P5S2M",name:"พุทธมณฑล 5 ซอย 2",cell:"P5S2MN2612",amph:"กระทุ่มแบน",sev:"low",inf:-103.76,inf2:-106.97},
+  {prov:"นครปฐม",  code:"TKAWM",name:"ทับแก้ว",cell:"TKAWMN2611",amph:"เมืองนครปฐม",sev:"low",inf:-103.61,inf2:-108.69},
+  {prov:"สมุทรสงคราม",code:"PRK62",name:"พระราม2 กม.62",cell:"PRK62N2614",amph:"เมืองสมุทรสงคราม",sev:"low",inf:-103.59,inf2:-111.69},
+];
+
+// Mutable working dataset (updated when Excel is loaded)
+let activeRows = [...cellRowsBase];
+
+// ── FILTER & SEARCH STATE ────────────────────────────────
+const PROV_FILTER = {
+  sk:'สมุทรสาคร', np:'นครปฐม', rb:'ราชบุรี', pb:'เพชรบุรี', ss:'สมุทรสงคราม'
+};
+const SEV_LABEL = {
+  crit:'<span class="sb sb-crit">🔴 วิกฤต ≥-90</span>',
+  high:'<span class="sb sb-high">🟠 สูง -95~-90</span>',
+  med: '<span class="sb sb-med">🟡 กลาง -100~-95</span>',
+  low: '<span class="sb sb-low">🟢 ต่ำ -105~-100</span>',
+};
+
+let currentFilter = 'all';
+let currentSearch  = '';
+
+function onSearch(val) {
+  currentSearch = val.toLowerCase().trim();
+  applyFiltersAndSearch();
+}
+
+function setFilter(filter, el) {
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = filter;
+  applyFiltersAndSearch();
+}
+
+function applyFiltersAndSearch() {
+  let rows = activeRows;
+
+  // Severity/province filter
+  if      (currentFilter === 'crit') rows = rows.filter(r => r.sev === 'crit');
+  else if (currentFilter === 'high') rows = rows.filter(r => r.sev === 'high');
+  else if (currentFilter === 'med')  rows = rows.filter(r => r.sev === 'med');
+  else if (currentFilter === 'low')  rows = rows.filter(r => r.sev === 'low');
+  else if (PROV_FILTER[currentFilter])
+    rows = rows.filter(r => r.prov === PROV_FILTER[currentFilter]);
+
+  // Text search across all key fields
+  if (currentSearch) {
+    rows = rows.filter(r =>
+      r.prov.toLowerCase().includes(currentSearch) ||
+      r.code.toLowerCase().includes(currentSearch) ||
+      r.name.toLowerCase().includes(currentSearch) ||
+      r.cell.toLowerCase().includes(currentSearch) ||
+      r.amph.toLowerCase().includes(currentSearch)
+    );
+  }
+
+  renderTableRows(rows);
+}
+
+function getInfHtml(val) {
+  const col = val >= -90 ? '#E63946' : val >= -95 ? '#F97316' : val >= -100 ? '#D97706' : '#2EC4B6';
+  return `<span style="color:${col};font-weight:700">${val.toFixed(2)}</span>`;
+}
+
+function renderTableRows(rows) {
+  const cnt = document.getElementById('resultCount');
+  cnt.textContent = `แสดง ${rows.length} รายการ`;
+
+  if (rows.length === 0) {
+    document.getElementById('cellBody').innerHTML =
+      '<tr><td colspan="9" class="no-result">ไม่พบข้อมูลที่ค้นหา</td></tr>';
+    return;
+  }
+
+  document.getElementById('cellBody').innerHTML = rows.map((r, i) => `
+    <tr data-sev="${r.sev}" data-prov="${r.prov}">
+      <td style="color:#64748B">${i+1}</td>
+      <td style="font-weight:700;color:${PCOL[r.prov]||'#E2E8F0'}">${r.prov}</td>
+      <td style="font-family:monospace;color:#94A3B8">${r.code}</td>
+      <td>${r.name}</td>
+      <td style="font-family:monospace;font-size:11px;color:#CBD5E1">${r.cell}</td>
+      <td style="color:#94A3B8">${r.amph}</td>
+      <td>${SEV_LABEL[r.sev]||r.sev}</td>
+      <td style="text-align:right">${getInfHtml(r.inf)}</td>
+      <td style="text-align:right;color:#64748B">${r.inf2.toFixed(2)}</td>
+    </tr>`).join('');
+}
+
+// Sync filter-tab counts
+function syncTabCounts(rows) {
+  const cnt = { all:rows.length, crit:0, high:0, med:0, low:0,
+                sk:0, np:0, rb:0, pb:0, ss:0 };
+  rows.forEach(r => {
+    cnt[r.sev]++;
+    const key = Object.keys(PROV_FILTER).find(k => PROV_FILTER[k] === r.prov);
+    if (key) cnt[key]++;
+  });
+  document.querySelectorAll('.ftab').forEach(tab => {
+    const f = tab.dataset.filter;
+    if (cnt[f] !== undefined) tab.textContent = tab.textContent.replace(/\s*\(\d+\)/, '');
+  });
+}
+
+// ── CHART INSTANCES ──────────────────────────────────────
+let trendChartInst, sevChartInst, cellTrendInst, fixedChartInst;
+
+// ─── 1. TREND CHART
+trendChartInst = new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{
+    labels: [...wkLabels],
+    datasets:[
+      ...Object.entries(site16).map(([name,data]) => ({
+        label:name, data:[...data], borderColor:PCOL[name],
+        backgroundColor:PCOL[name]+'20',
+        borderWidth:2, tension:0.3, fill:false, pointRadius:1.5,
+      })),
+      {
+        label:'รวมเขต 16', data:[...total16],
+        borderColor:'#E2E8F0', borderDash:[4,3],
+        backgroundColor:'transparent', borderWidth:1.5,
+        tension:0.3, fill:false, pointRadius:0,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'bottom', labels:{font:{size:10}, boxWidth:12, padding:8}},
+      tooltip:{mode:'index', intersect:false}
+    },
+    scales:{
+      x:{grid:{color:G}, ticks:{font:{size:8}, maxRotation:45}},
+      y:{grid:{color:G}, min:0, ticks:{font:{size:9}}}
+    }
+  }
+});
+
+// ─── 2. SEVERITY CHART
+sevChartInst = new Chart(document.getElementById('sevChart'), {
+  type:'bar',
+  data:{
+    labels:[...sevProvinces],
+    datasets:[
+      {label:'≥-90 (วิกฤต)', data:[...sevCrit], backgroundColor:'#C0392B', borderRadius:2},
+      {label:'-95~-90 (สูง)', data:[...sevHigh], backgroundColor:'#E67E22', borderRadius:2},
+      {label:'-100~-95 (กลาง)',data:[...sevMed],  backgroundColor:'#D4AC0D', borderRadius:2},
+      {label:'-105~-100 (ต่ำ)', data:[...sevLow], backgroundColor:'#2ECC71', borderRadius:2},
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'bottom', labels:{font:{size:9}, boxWidth:11, padding:6}},
+      tooltip:{mode:'index', intersect:false}
+    },
+    scales:{
+      x:{stacked:true, grid:{color:G}, ticks:{font:{size:10}}},
+      y:{stacked:true, grid:{color:G}, ticks:{font:{size:9}}}
+    }
+  }
+});
+
+// ─── 3. CELL TREND
+cellTrendInst = new Chart(document.getElementById('cellTrend'), {
+  type:'line',
+  data:{
+    labels:[...cellWks],
+    datasets: Object.entries(cellData).map(([name,data]) => ({
+      label:name, data:[...data], borderColor:PCOL[name],
+      backgroundColor:'transparent', borderWidth:2.5,
+      tension:0.3, fill:false, pointRadius:4, pointHoverRadius:7,
+    }))
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'bottom', labels:{font:{size:10}, boxWidth:12, padding:6}},
+      tooltip:{mode:'index', intersect:false}
+    },
+    scales:{
+      x:{grid:{color:G}, ticks:{font:{size:10}}},
+      y:{grid:{color:G}, ticks:{font:{size:9}},
+         title:{display:true, text:'Cell Active', font:{size:10}}}
+    }
+  }
+});
+
+// ─── 4. % FIXED BAR
+let pfData = [
+  {name:"ราชบุรี",    pct:40.0, ref:30, curr:18},
+  {name:"นครปฐม",    pct:29.5, ref:78, curr:55},
+  {name:"เพชรบุรี",   pct:18.2, ref:11, curr:9 },
+  {name:"สมุทรสาคร", pct:23.2, ref:95, curr:73},
+  {name:"สมุทรสงคราม",pct:25.0, ref:4,  curr:3 },
+];
+pfData.sort((a,b)=>b.pct-a.pct);
+
+fixedChartInst = new Chart(document.getElementById('fixedChart'), {
+  type:'bar',
+  data:{
+    labels:pfData.map(d=>d.name),
+    datasets:[{
+      label:'% Fixed',
+      data:pfData.map(d=>d.pct),
+      backgroundColor:pfData.map(d=>
+        d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946'),
+      borderRadius:5,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y.toFixed(1)}%`}}
+    },
+    scales:{
+      x:{grid:{color:G}, ticks:{font:{size:10}}},
+      y:{grid:{color:G}, min:0, max:60,
+         ticks:{font:{size:9}, callback:v=>v+'%'},
+         title:{display:true, text:'% Fixed', font:{size:10}}}
+    }
+  }
+});
+
+// Initial table render
+applyFiltersAndSearch();
+
+// ═══════════════════════════════════════════════════════
+// ── LOCAL STORAGE: SAVE & RESTORE STATE ─────────────
+// ═══════════════════════════════════════════════════════
+const LS_KEY = 'nr2600_dashboard_v1';
+
+function saveState(fileName) {
+  try {
+    const state = {
+      activeRows,
+      pfData,
+      fileName: fileName || '',
+      kpiCell:       document.getElementById('kpiCell').textContent,
+      kpiCellSub:    document.getElementById('kpiCellSub').textContent,
+      kpiCrit:       document.getElementById('kpiCrit').textContent,
+      kpiCritSub:    document.getElementById('kpiCritSub').textContent,
+      kpiRemain:     document.getElementById('kpiRemain').textContent,
+      kpiRemainSub:  document.getElementById('kpiRemainSub').textContent,
+      kpiFixed:      document.getElementById('kpiFixed').textContent,
+      kpiFixedSub:   document.getElementById('kpiFixedSub').textContent,
+      wkBadge:       document.getElementById('wkBadge').textContent,
+      alertBody:     document.getElementById('alertBody').innerHTML,
+      footerTxt:     document.getElementById('footerTxt').textContent,
+      trendLabels:   trendChartInst.data.labels.slice(),
+      trendDatasets: trendChartInst.data.datasets.map(d => d.data.slice()),
+      sevDatasets:   sevChartInst.data.datasets.map(d => d.data.slice()),
+      savedAt: new Date().toLocaleString('th-TH'),
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch(e) {
+    console.warn('⚠️ localStorage save failed:', e);
+  }
+}
+
+function restoreState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    // Restore working dataset
+    if (s.activeRows && s.activeRows.length > 0) activeRows = s.activeRows;
+
+    // Restore KPI text
+    ['kpiCell','kpiCellSub','kpiCrit','kpiCritSub',
+     'kpiRemain','kpiRemainSub','kpiFixed','kpiFixedSub','wkBadge','footerTxt'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && s[id] != null) el.textContent = s[id];
+    });
+    if (s.alertBody) document.getElementById('alertBody').innerHTML = s.alertBody;
+
+    // Restore trend chart
+    if (s.trendLabels)   trendChartInst.data.labels = s.trendLabels;
+    if (s.trendDatasets) s.trendDatasets.forEach((d,i) => {
+      if (trendChartInst.data.datasets[i]) trendChartInst.data.datasets[i].data = d;
+    });
+    trendChartInst.update();
+
+    // Restore severity chart
+    if (s.sevDatasets) s.sevDatasets.forEach((d,i) => {
+      if (sevChartInst.data.datasets[i]) sevChartInst.data.datasets[i].data = d;
+    });
+    sevChartInst.update();
+
+    // Restore % Fixed chart
+    if (s.pfData && s.pfData.length > 0) {
+      pfData = s.pfData;
+      fixedChartInst.data.labels = pfData.map(d => d.name);
+      fixedChartInst.data.datasets[0].data = pfData.map(d => d.pct);
+      fixedChartInst.data.datasets[0].backgroundColor = pfData.map(d =>
+        d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946');
+      fixedChartInst.update();
+    }
+
+    // Re-render table with restored data
+    applyFiltersAndSearch();
+
+    // Show restore notice
+    const el = document.getElementById('uploadStatus');
+    el.textContent = `💾 โหลดข้อมูลล่าสุดจาก Cache (${s.fileName || 'ไม่ทราบไฟล์'}) — บันทึกเมื่อ ${s.savedAt || ''}`;
+    el.className = 'upload-status ok';
+
+  } catch(e) {
+    console.warn('⚠️ localStorage restore failed:', e);
+  }
+}
+
+// ── Clear cache button ────────────────────────────────────
+function clearCache() {
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+// Restore on load
+restoreState();
+
+// ═══════════════════════════════════════════════════════
+// ── EXCEL UPLOAD & PARSING ───────────────────────────
+// ═══════════════════════════════════════════════════════
+
+const PROV16 = ['ราชบุรี','นครปฐม','เพชรบุรี','สมุทรสาคร','สมุทรสงคราม'];
+const REF16  = {ราชบุรี:30, นครปฐม:78, เพชรบุรี:11, สมุทรสาคร:95, สมุทรสงคราม:4};
+const REF_TOTAL = 218;
+
+// Drag-and-drop
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processExcel(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) processExcel(e.target.files[0]);
+  fileInput.value = '';
+});
+
+function showStatus(msg, isOk) {
+  const el = document.getElementById('uploadStatus');
+  el.textContent = msg;
+  el.className = 'upload-status ' + (isOk ? 'ok' : 'err');
+}
+
+function processExcel(file) {
+  showStatus('⏳ กำลังอ่านไฟล์ ' + file.name + ' ...', true);
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
+
+      // Extract week label from filename e.g. "...wk13.xlsx" → "wk13"
+      const wkMatch = file.name.match(/wk(\d+)/i);
+      const wkNum   = wkMatch ? 'wk' + wkMatch[1] : 'new';
+      const wkYear  = file.name.match(/Y(\d{4})/i);
+      const wkLabel = wkNum + (wkYear ? '/' + wkYear[1].slice(2) : '');
+
+      let updated = false;
+
+      // ── Parse "Status Overall" for province site counts
+      const wsOv = wb.Sheets['Status Overall'] || wb.Sheets['Status overall'];
+      if (wsOv) {
+        const parsed = parseStatusOverall(XLSX.utils.sheet_to_json(wsOv, {header:1, defval:''}), wkLabel);
+        if (parsed) updated = true;
+      }
+
+      // ── Parse cell-level data: ลองใช้ "Raw.Interference" ก่อน, fallback ไป "Priority"
+      const wsRaw = wb.Sheets['Raw.Interference'];
+      const wsPr  = wb.Sheets['Priority'];
+      if (wsRaw) {
+        const parsed = parseRawInterference(XLSX.utils.sheet_to_json(wsRaw, {header:1, defval:''}), wkLabel);
+        if (parsed) updated = true;
+      } else if (wsPr) {
+        const parsed = parsePriority(XLSX.utils.sheet_to_json(wsPr, {header:1, defval:''}), wkLabel);
+        if (parsed) updated = true;
+      }
+
+      if (updated) {
+        showStatus('✅ อัปเดต Dashboard จากไฟล์ ' + file.name + ' สำเร็จ! (บันทึก Cache แล้ว)', true);
+        document.getElementById('footerTxt').textContent =
+          'กสทช. เขต 16 | NR2600 Interference Tracking | AWN BR288-2568 | อัปเดตจาก ' + file.name;
+        saveState(file.name);
+      } else {
+        showStatus('⚠️ ไม่พบ Sheet ที่รู้จัก (ต้องการ "Raw.Interference" / "Status Overall") ใน ' + file.name, false);
+      }
+    } catch(err) {
+      showStatus('❌ เกิดข้อผิดพลาด: ' + err.message, false);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Parse "Status Overall" sheet ─────────────────────────
+function parseStatusOverall(data, wkLabel) {
+  // Find header row that contains week labels like wk23, wk24, ...
+  let hRow = -1, weekCols = {}, provCol = -1;
+
+  for (let r = 0; r < Math.min(12, data.length); r++) {
+    const row = data[r].map(c => String(c));
+
+    // Pattern 1: headers like "wk13", "wk14"
+    const weekIdx = row.findIndex(c => /wk\d+/i.test(c));
+    if (weekIdx >= 0) {
+      hRow = r;
+      row.forEach((c, ci) => { if (/wk\d+/i.test(c)) weekCols[ci] = c; });
+      for (let c = 0; c < 6; c++) {
+        if (data.slice(r+1, r+20).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
+          provCol = c; break;
+        }
+      }
+      break;
+    }
+
+    // Pattern 2: headers like "Sum of 23/03/2026 - 29/03/2026 (Site)"
+    const sumIdx = row.findIndex(c => /sum of .+?\(site\)/i.test(c));
+    if (sumIdx >= 0) {
+      hRow = r;
+      row.forEach((c, ci) => { if (/sum of .+?\(site\)/i.test(c)) weekCols[ci] = c; });
+      for (let c = 0; c < 6; c++) {
+        if (data.slice(r+1, r+20).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
+          provCol = c; break;
+        }
+      }
+      break;
+    }
+  }
+  if (hRow < 0 || provCol < 0 || Object.keys(weekCols).length === 0) return false;
+
+  // Get latest week column
+  // For wk\d+ labels → sort by week number; for date-range labels → sort by column index (rightmost = latest)
+  const sortedCols = Object.entries(weekCols).sort((a,b) => {
+    const wkA = String(a[1]).match(/wk(\d+)/i);
+    const wkB = String(b[1]).match(/wk(\d+)/i);
+    if (wkA && wkB) return parseInt(wkB[1]) - parseInt(wkA[1]);
+    return parseInt(b[0]) - parseInt(a[0]); // higher column index = more recent date
+  });
+  const latestCol = parseInt(sortedCols[0][0]);
+  const latestLbl = wkLabel || sortedCols[0][1];
+
+  // Extract per-province data
+  const newCounts = {};
+  for (let r = hRow+1; r < data.length; r++) {
+    const prov = String(data[r][provCol]).trim();
+    if (PROV16.includes(prov)) {
+      const v = parseFloat(String(data[r][latestCol]).replace(/,/g,''));
+      if (!isNaN(v)) newCounts[prov] = v;
+    }
+  }
+  if (Object.keys(newCounts).length === 0) return false;
+
+  // ── Append new week to trend chart (avoid duplicate)
+  const existingLabels = trendChartInst.data.labels;
+  const normLbl = latestLbl.toLowerCase();
+  if (!existingLabels.some(l => String(l).toLowerCase().replace(/\n.*/,'') === normLbl)) {
+    trendChartInst.data.labels.push(latestLbl);
+    // Datasets: 0-4 = provinces, last = total
+    let total = 0;
+    PROV16.forEach((prov, di) => {
+      const v = newCounts[prov] || 0;
+      trendChartInst.data.datasets[di].data.push(v);
+      total += v;
+    });
+    trendChartInst.data.datasets[PROV16.length].data.push(total);
+    trendChartInst.update();
+  }
+
+  // ── Update KPI cards
+  const remain = PROV16.reduce((s,p) => s + (newCounts[p]||0), 0);
+  const fixed  = REF_TOTAL - remain;
+  const pct    = ((fixed / REF_TOTAL)*100).toFixed(1);
+  document.getElementById('kpiRemain').textContent   = remain;
+  document.getElementById('kpiFixed').textContent    = pct + '%';
+  document.getElementById('kpiFixedSub').textContent = fixed + ' Site แก้ไขแล้ว';
+  document.getElementById('kpiRemainSub').textContent = ((remain/REF_TOTAL)*100).toFixed(1) + '% ของ ref | ' + latestLbl;
+  document.getElementById('wkBadge').textContent      = '📅 ' + latestLbl;
+
+  // ── Update % Fixed chart
+  pfData = PROV16.map(prov => ({
+    name: prov,
+    ref:  REF16[prov],
+    curr: newCounts[prov] || 0,
+    pct:  ((REF16[prov] - (newCounts[prov]||0)) / REF16[prov] * 100),
+  })).sort((a,b) => b.pct - a.pct);
+
+  fixedChartInst.data.labels = pfData.map(d => d.name);
+  fixedChartInst.data.datasets[0].data = pfData.map(d => d.pct);
+  fixedChartInst.data.datasets[0].backgroundColor = pfData.map(d =>
+    d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946');
+  fixedChartInst.update();
+
+  return true;
+}
+
+// ── Parse "Priority" sheet ────────────────────────────────
+function parsePriority(data, wkLabel) {
+  if (!data || data.length < 2) return false;
+
+  // Detect header row by looking for known column name patterns
+  const keyPatterns = {
+    prov: ['จังหวัด','province','changwat'],
+    code: ['site code','site_code','sitecode'],
+    name: ['site name','site_name','sitename','ชื่อ site','ชื่อsite'],
+    cell: ['cell name','cell_name','cellname','cell id'],
+    amph: ['อำเภอ','district','amphoe','amphur'],
+    inf1: ['prb0-30','prb0','ul.ni.avg.prb0','n.ul.ni.avg.prb0'],
+    inf2: ['prb65-105','prb65','ul.ni.avg.prb65','n.ul.ni.avg.prb65'],
+  };
+
+  let hRow = -1, colMap = {};
+  for (let r = 0; r < Math.min(15, data.length); r++) {
+    const row = data[r].map(c => String(c).toLowerCase().trim());
+    const tmp = {};
+    let hits = 0;
+    for (const [key, pats] of Object.entries(keyPatterns)) {
+      for (let ci = 0; ci < row.length; ci++) {
+        if (pats.some(p => row[ci].includes(p))) {
+          tmp[key] = ci; hits++; break;
+        }
+      }
+    }
+    if (hits >= 4) { hRow = r; Object.assign(colMap, tmp); break; }
+  }
+  if (hRow < 0 || !colMap.prov || !colMap.inf1) return false;
+
+  // Extract rows
+  const newRows = [];
+  for (let r = hRow+1; r < data.length; r++) {
+    const row = data[r];
+    const prov = String(row[colMap.prov]||'').trim();
+    if (!PROV16.includes(prov)) continue;
+
+    const inf1 = parseFloat(String(row[colMap.inf1]||'').replace(/,/g,''));
+    if (isNaN(inf1) || inf1 === 0) continue;
+
+    const inf2v = colMap.inf2 !== undefined ? parseFloat(String(row[colMap.inf2]||'0').replace(/,/g,'')) : 0;
+    newRows.push({
+      prov,
+      code: String(row[colMap.code]||'').trim().slice(0,5),
+      name: String(row[colMap.name]||'').trim(),
+      cell: String(row[colMap.cell]||'').trim(),
+      amph: String(row[colMap.amph]||'').trim(),
+      sev:  inf1 >= -90 ? 'crit' : inf1 >= -95 ? 'high' : inf1 >= -100 ? 'med' : 'low',
+      inf: inf1,
+      inf2: isNaN(inf2v) ? 0 : inf2v,
+    });
+  }
+  if (newRows.length === 0) return false;
+
+  // Sort by INF ascending (worst first)
+  newRows.sort((a,b) => b.inf - a.inf);
+
+  // Update active rows
+  activeRows = newRows;
+
+  // Update cell count KPI
+  document.getElementById('kpiCell').textContent     = newRows.length;
+  document.getElementById('kpiCellSub').textContent  = 'Cell active | ' + wkLabel;
+
+  // Count critical
+  const critCount = newRows.filter(r => r.sev === 'crit').length;
+  document.getElementById('kpiCrit').textContent = critCount;
+
+  // Update severity chart
+  const sevCntMap = {};
+  PROV16.forEach(p => { sevCntMap[p] = {crit:0, high:0, med:0, low:0}; });
+  newRows.forEach(r => { if (sevCntMap[r.prov]) sevCntMap[r.prov][r.sev]++; });
+
+  const orderedProvs = ['สมุทรสาคร','นครปฐม','ราชบุรี','เพชรบุรี','สมุทรสงคราม'];
+  sevChartInst.data.datasets[0].data = orderedProvs.map(p => sevCntMap[p].crit);
+  sevChartInst.data.datasets[1].data = orderedProvs.map(p => sevCntMap[p].high);
+  sevChartInst.data.datasets[2].data = orderedProvs.map(p => sevCntMap[p].med);
+  sevChartInst.data.datasets[3].data = orderedProvs.map(p => sevCntMap[p].low);
+  sevChartInst.update();
+
+  // Update alert box
+  const critRows = newRows.filter(r => r.sev === 'crit');
+  if (critRows.length > 0) {
+    const byProv = {};
+    critRows.forEach(r => { byProv[r.prov] = (byProv[r.prov]||0)+1; });
+    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${p} ${n} Cell</span>`).join(' ');
+    const worst = critRows[0];
+    document.getElementById('alertBody').innerHTML =
+      `<strong>Cell วิกฤต (INF ≥ -90 dBm) ${critRows.length} Cell:</strong> ${tags}
+       &nbsp;— Site รุนแรงที่สุด: <strong>${worst.name} (${worst.cell}) ${worst.prov} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
+  } else {
+    document.getElementById('alertBody').innerHTML =
+      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
+  }
+
+  // Reset filter and re-render
+  currentFilter = 'all';
+  currentSearch  = '';
+  document.getElementById('searchBox').value = '';
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-filter="all"]').classList.add('active');
+  applyFiltersAndSearch();
+
+  return true;
+}
+
+// ── Parse "Raw.Interference" sheet (ไฟล์รูปแบบใหม่) ────────
+function parseRawInterference(data, wkLabel) {
+  if (!data || data.length < 2) return false;
+
+  // Header is row 0
+  const hdr = data[0].map(c => String(c).toLowerCase().trim());
+  const idxWEEK  = hdr.findIndex(c => c === 'week');
+  const idxCode  = hdr.findIndex(c => c.includes('site code'));
+  const idxName  = hdr.findIndex(c => c.includes('site name'));
+  const idxCell  = hdr.findIndex(c => c.includes('cell name'));
+  const idxAmph  = hdr.findIndex(c => c.includes('amphur') || c.includes('amphoe') || c.includes('อำเภอ'));
+  const idxProv  = hdr.findIndex(c => c === 'province' || c === 'จังหวัด');
+  const idxNBTC  = hdr.findIndex(c => c === 'nbtc');
+  const idxInf1  = hdr.findIndex(c => c.includes('prb0-30') || (c.includes('prb0') && !c.includes('prb0-30') === false));
+  const idxInf2  = hdr.findIndex(c => c.includes('prb65-105') || c.includes('prb65'));
+  const idxInterf = hdr.findIndex(c => c === 'interference');
+
+  if (idxProv < 0 || idxInf1 < 0) return false;
+
+  // Find latest WEEK value
+  const weekSet = new Set();
+  for (let r = 1; r < data.length; r++) {
+    const w = String(data[r][idxWEEK] || '').trim();
+    if (/wk\d+/i.test(w)) weekSet.add(w);
+  }
+  if (weekSet.size === 0) return false;
+  const latestWk = [...weekSet].sort((a,b) =>
+    parseInt(b.match(/\d+/)[0]) - parseInt(a.match(/\d+/)[0])
+  )[0];
+
+  // Extract cell rows: latestWk + NBTC=16 + province in PROV16 + Interference != '-'
+  const newRows = [];
+  for (let r = 1; r < data.length; r++) {
+    const row = data[r];
+    if (String(row[idxWEEK]) !== latestWk) continue;
+    if (idxNBTC >= 0 && parseInt(row[idxNBTC]) !== 16) continue;
+    const prov = String(row[idxProv] || '').trim();
+    if (!PROV16.includes(prov)) continue;
+    if (idxInterf >= 0) {
+      const cls = String(row[idxInterf] || '').trim();
+      if (cls === '-' || cls === '') continue;
+    }
+    const inf1 = parseFloat(String(row[idxInf1] || '').replace(/,/g, ''));
+    if (isNaN(inf1)) continue;
+    const inf2v = idxInf2 >= 0 ? parseFloat(String(row[idxInf2] || '0').replace(/,/g, '')) : 0;
+    newRows.push({
+      prov,
+      code: String(row[idxCode] || '').trim().slice(0, 5),
+      name: String(row[idxName] || '').trim(),
+      cell: String(row[idxCell] || '').trim(),
+      amph: String(row[idxAmph] || '').trim(),
+      sev:  inf1 >= -90 ? 'crit' : inf1 >= -95 ? 'high' : inf1 >= -100 ? 'med' : 'low',
+      inf:  inf1,
+      inf2: isNaN(inf2v) ? 0 : inf2v,
+    });
+  }
+  if (newRows.length === 0) return false;
+
+  // Sort by INF descending (worst/highest value first = most critical)
+  newRows.sort((a, b) => b.inf - a.inf);
+
+  // Update active rows & table
+  activeRows = newRows;
+  document.getElementById('kpiCell').textContent    = newRows.length;
+  document.getElementById('kpiCellSub').textContent = 'Cell active | ' + wkLabel;
+
+  // Count critical
+  const critCount = newRows.filter(r => r.sev === 'crit').length;
+  document.getElementById('kpiCrit').textContent    = critCount;
+  document.getElementById('kpiCritSub').textContent =
+    PROV16.map(p => {
+      const n = newRows.filter(r => r.prov === p && r.sev === 'crit').length;
+      return n > 0 ? p.replace('สมุทรสาคร','สค').replace('นครปฐม','นฐ')
+                       .replace('ราชบุรี','รบ').replace('เพชรบุรี','พบ')
+                       .replace('สมุทรสงคราม','สส') + ' ' + n : '';
+    }).filter(Boolean).join(' · ') || 'ไม่พบ';
+
+  // Update severity chart
+  const sevCntMap = {};
+  PROV16.forEach(p => { sevCntMap[p] = {crit:0, high:0, med:0, low:0}; });
+  newRows.forEach(r => { if (sevCntMap[r.prov]) sevCntMap[r.prov][r.sev]++; });
+  const orderedProvs = ['สมุทรสาคร','นครปฐม','ราชบุรี','เพชรบุรี','สมุทรสงคราม'];
+  sevChartInst.data.datasets[0].data = orderedProvs.map(p => sevCntMap[p].crit);
+  sevChartInst.data.datasets[1].data = orderedProvs.map(p => sevCntMap[p].high);
+  sevChartInst.data.datasets[2].data = orderedProvs.map(p => sevCntMap[p].med);
+  sevChartInst.data.datasets[3].data = orderedProvs.map(p => sevCntMap[p].low);
+  sevChartInst.update();
+
+  // Update alert box
+  const critRows = newRows.filter(r => r.sev === 'crit');
+  if (critRows.length > 0) {
+    const byProv = {};
+    critRows.forEach(r => { byProv[r.prov] = (byProv[r.prov]||0)+1; });
+    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${p} ${n} Cell</span>`).join(' ');
+    const worst = critRows[0];
+    document.getElementById('alertBody').innerHTML =
+      `<strong>Cell วิกฤต (INF ≥ -90 dBm) ${critRows.length} Cell:</strong> ${tags}
+       &nbsp;— Site รุนแรงที่สุด: <strong>${worst.name} (${worst.cell}) ${worst.prov} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
+  } else {
+    document.getElementById('alertBody').innerHTML =
+      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
+  }
+
+  // Reset filter and re-render
+  currentFilter = 'all';
+  currentSearch  = '';
+  document.getElementById('searchBox').value = '';
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-filter="all"]').classList.add('active');
+  applyFiltersAndSearch();
+
+  return true;
+}
+
+</script>
+</body>
+</html>

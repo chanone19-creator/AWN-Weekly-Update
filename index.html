@@ -597,6 +597,7 @@ function getInfHtml(val) {
 }
 
 function renderTableRows(rows) {
+  syncTabCounts(activeRows);
   const cnt = document.getElementById('resultCount');
   cnt.textContent = `แสดง ${rows.length} รายการ`;
 
@@ -631,7 +632,9 @@ function syncTabCounts(rows) {
   });
   document.querySelectorAll('.ftab').forEach(tab => {
     const f = tab.dataset.filter;
-    if (cnt[f] !== undefined) tab.textContent = tab.textContent.replace(/\s*\(\d+\)/, '');
+    if (cnt[f] !== undefined) {
+      tab.textContent = tab.textContent.replace(/\s*\(\d+\)/, '') + ` (${cnt[f]})`;
+    }
   });
 }
 
@@ -1092,7 +1095,7 @@ function parsePriority(data, wkLabel) {
   }
   if (newRows.length === 0) return false;
 
-  // Sort by INF ascending (worst first)
+  // Sort by INF descending (worst/highest value first = most critical)
   newRows.sort((a,b) => b.inf - a.inf);
 
   // Update active rows
@@ -1157,7 +1160,7 @@ function parseRawInterference(data, wkLabel) {
   const idxAmph  = hdr.findIndex(c => c.includes('amphur') || c.includes('amphoe') || c.includes('อำเภอ'));
   const idxProv  = hdr.findIndex(c => c === 'province' || c === 'จังหวัด');
   const idxNBTC  = hdr.findIndex(c => c === 'nbtc');
-  const idxInf1  = hdr.findIndex(c => c.includes('prb0-30') || (c.includes('prb0') && !c.includes('prb0-30') === false));
+  const idxInf1  = hdr.findIndex(c => c.includes('prb0-30') || (c.includes('prb0') && !c.includes('prb0-30')));
   const idxInf2  = hdr.findIndex(c => c.includes('prb65-105') || c.includes('prb65'));
   const idxInterf = hdr.findIndex(c => c === 'interference');
 

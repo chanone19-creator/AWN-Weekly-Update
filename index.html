@@ -510,8 +510,8 @@ const cellRowsBase = [
   {prov:"สมุทรสาคร",code:"TAASM",name:"ท่าทราย",cell:"TAASMN2612",amph:"เมืองสมุทรสาคร",sev:"high",inf:-93.21,inf2:-101.66},
   {prov:"สมุทรสาคร",code:"SBJTM",name:"ซอยศูนย์ฝึกเบญจรงค์",cell:"SBJTMN2611",amph:"เมืองสมุทรสาคร",sev:"high",inf:-93.62,inf2:-102.19},
   {prov:"สมุทรสาคร",code:"KNPTW",name:"คลองน้อยพันธุวงศ์",cell:"KNPTWN2613",amph:"กระทุ่มแบน",sev:"high",inf:-92.03,inf2:-100.78},
-  {prov:"นครปฐม",  code:"BUWNM",name:"บัวหวั่น",cell:"BUWNMN2614",amph:"บางเลน",sev:"med",inf:-104.91,inf2:-114.24},
-  {prov:"เพชรบุรี", code:"SAPG5",name:"สระพัง 5 บีม",cell:"SAPG5U2611",amph:"เขาย้อย",sev:"med",inf:-104.86,inf2:-110.54},
+  {prov:"นครปฐม",  code:"BUWNM",name:"บัวหวั่น",cell:"BUWNMN2614",amph:"บางเลน",sev:"low",inf:-104.91,inf2:-114.24},
+  {prov:"เพชรบุรี", code:"SAPG5",name:"สระพัง 5 บีม",cell:"SAPG5U2611",amph:"เขาย้อย",sev:"low",inf:-104.86,inf2:-110.54},
   {prov:"สมุทรสาคร",code:"ISKN5",name:"นิคมอุตสาหกรรมสมุทรสาครซอย 5",cell:"ISKN5N2611",amph:"เมืองสมุทรสาคร",sev:"low",inf:-104.80,inf2:-111.23},
   {prov:"ราชบุรี", code:"WTDTK",name:"วัดดอนตะโก",cell:"WTDTKN2613",amph:"เมืองราชบุรี",sev:"low",inf:-104.77,inf2:-110.96},
   {prov:"นครปฐม",  code:"BPSIM",name:"บางภาษี",cell:"BPSIMN2612",amph:"บางเลน",sev:"low",inf:-104.74,inf2:-111.91},
@@ -636,6 +636,24 @@ function syncTabCounts(rows) {
       tab.textContent = tab.textContent.replace(/\s*\(\d+\)/, '') + ` (${cnt[f]})`;
     }
   });
+}
+
+// ── CELL TREND UPDATE HELPER ─────────────────────────────
+function updateCellTrend(newRows, wkLabel) {
+  if (!cellTrendInst || !wkLabel) return;
+  const lbl = wkLabel.toLowerCase();
+  if (cellTrendInst.data.labels.some(l => String(l).toLowerCase() === lbl)) return;
+
+  // Count active cells per province
+  const countByProv = {};
+  PROV16.forEach(p => { countByProv[p] = 0; });
+  newRows.forEach(r => { if (countByProv[r.prov] !== undefined) countByProv[r.prov]++; });
+
+  cellTrendInst.data.labels.push(wkLabel);
+  cellTrendInst.data.datasets.forEach((ds, i) => {
+    ds.data.push(countByProv[PROV16[i]] || 0);
+  });
+  cellTrendInst.update();
 }
 
 // ── CHART INSTANCES ──────────────────────────────────────
@@ -1108,6 +1126,13 @@ function parsePriority(data, wkLabel) {
   // Count critical
   const critCount = newRows.filter(r => r.sev === 'crit').length;
   document.getElementById('kpiCrit').textContent = critCount;
+  document.getElementById('kpiCritSub').textContent =
+    PROV16.map(p => {
+      const n = newRows.filter(r => r.prov === p && r.sev === 'crit').length;
+      return n > 0 ? p.replace('สมุทรสาคร','สค').replace('นครปฐม','นฐ')
+                       .replace('ราชบุรี','รบ').replace('เพชรบุรี','พบ')
+                       .replace('สมุทรสงคราม','สส') + ' ' + n : '';
+    }).filter(Boolean).join(' · ') || 'ไม่พบ';
 
   // Update severity chart
   const sevCntMap = {};
@@ -1135,6 +1160,9 @@ function parsePriority(data, wkLabel) {
     document.getElementById('alertBody').innerHTML =
       `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
   }
+
+  // Update cell trend chart
+  updateCellTrend(newRows, wkLabel);
 
   // Reset filter and re-render
   currentFilter = 'all';
@@ -1249,6 +1277,9 @@ function parseRawInterference(data, wkLabel) {
     document.getElementById('alertBody').innerHTML =
       `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
   }
+
+  // Update cell trend chart
+  updateCellTrend(newRows, wkLabel);
 
   // Reset filter and re-render
   currentFilter = 'all';

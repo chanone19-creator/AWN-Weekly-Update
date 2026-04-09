@@ -442,6 +442,15 @@ Chart.defaults.color = '#94A3B8';
 Chart.defaults.borderColor = '#1E293B';
 const G = '#1E3A5F';
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── STATIC BASELINE DATA ────────────────────────────────
 const wkLabels = [
   "Ref\nมิ.ย.'68","Sep W1","Sep W2","Sep W3","Sep W4",
@@ -482,11 +491,11 @@ const cellData = {
 };
 
 // Severity by province (wk12)
-let sevProvinces = ["สมุทรสาคร","นครปฐม","ราชบุรี","เพชรบุรี","สมุทรสงคราม"];
-let sevCrit = [2,0,0,1,0];
-let sevHigh = [9,5,2,1,0];
-let sevMed  = [35,24,6,3,1];
-let sevLow  = [52,44,12,5,2];
+const sevProvinces = ["สมุทรสาคร","นครปฐม","ราชบุรี","เพชรบุรี","สมุทรสงคราม"];
+const sevCrit = [2,0,0,1,0];
+const sevHigh = [9,5,2,1,0];
+const sevMed  = [35,24,6,3,1];
+const sevLow  = [52,44,12,5,2];
 
 // Static cell rows (wk12 baseline)
 const cellRowsBase = [
@@ -1151,14 +1160,14 @@ function parsePriority(data, wkLabel) {
   if (critRows.length > 0) {
     const byProv = {};
     critRows.forEach(r => { byProv[r.prov] = (byProv[r.prov]||0)+1; });
-    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${p} ${n} Cell</span>`).join(' ');
+    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${escapeHtml(p)} ${n} Cell</span>`).join(' ');
     const worst = critRows[0];
     document.getElementById('alertBody').innerHTML =
       `<strong>Cell วิกฤต (INF ≥ -90 dBm) ${critRows.length} Cell:</strong> ${tags}
-       &nbsp;— Site รุนแรงที่สุด: <strong>${worst.name} (${worst.cell}) ${worst.prov} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
+       &nbsp;— Site รุนแรงที่สุด: <strong>${escapeHtml(worst.name)} (${escapeHtml(worst.cell)}) ${escapeHtml(worst.prov)} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
   } else {
     document.getElementById('alertBody').innerHTML =
-      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
+      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${escapeHtml(wkLabel)} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
   }
 
   // Update cell trend chart
@@ -1268,14 +1277,14 @@ function parseRawInterference(data, wkLabel) {
   if (critRows.length > 0) {
     const byProv = {};
     critRows.forEach(r => { byProv[r.prov] = (byProv[r.prov]||0)+1; });
-    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${p} ${n} Cell</span>`).join(' ');
+    const tags = Object.entries(byProv).map(([p,n])=>`<span class="crit-tag">${escapeHtml(p)} ${n} Cell</span>`).join(' ');
     const worst = critRows[0];
     document.getElementById('alertBody').innerHTML =
       `<strong>Cell วิกฤต (INF ≥ -90 dBm) ${critRows.length} Cell:</strong> ${tags}
-       &nbsp;— Site รุนแรงที่สุด: <strong>${worst.name} (${worst.cell}) ${worst.prov} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
+       &nbsp;— Site รุนแรงที่สุด: <strong>${escapeHtml(worst.name)} (${escapeHtml(worst.cell)}) ${escapeHtml(worst.prov)} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
   } else {
     document.getElementById('alertBody').innerHTML =
-      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${wkLabel} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
+      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${escapeHtml(wkLabel)} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
   }
 
   // Update cell trend chart

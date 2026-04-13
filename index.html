@@ -904,6 +904,7 @@ restoreState();
 const PROV16 = ['ราชบุรี','นครปฐม','เพชรบุรี','สมุทรสาคร','สมุทรสงคราม'];
 const REF16  = {ราชบุรี:30, นครปฐม:78, เพชรบุรี:11, สมุทรสาคร:95, สมุทรสงคราม:4};
 const REF_TOTAL = 218;
+const SEV_PROV_ORDER = ['สมุทรสาคร','นครปฐม','ราชบุรี','เพชรบุรี','สมุทรสงคราม'];
 
 // Drag-and-drop
 const dropZone = document.getElementById('dropZone');
@@ -974,6 +975,7 @@ function processExcel(file) {
       console.error(err);
     }
   };
+  reader.onerror = () => showStatus('❌ ไม่สามารถอ่านไฟล์ได้: ' + file.name, false);
   reader.readAsArrayBuffer(file);
 }
 
@@ -1161,11 +1163,10 @@ function parsePriority(data, wkLabel) {
   PROV16.forEach(p => { sevCntMap[p] = {crit:0, high:0, med:0, low:0}; });
   newRows.forEach(r => { if (sevCntMap[r.prov]) sevCntMap[r.prov][r.sev]++; });
 
-  const orderedProvs = ['สมุทรสาคร','นครปฐม','ราชบุรี','เพชรบุรี','สมุทรสงคราม'];
-  sevChartInst.data.datasets[0].data = orderedProvs.map(p => sevCntMap[p].crit);
-  sevChartInst.data.datasets[1].data = orderedProvs.map(p => sevCntMap[p].high);
-  sevChartInst.data.datasets[2].data = orderedProvs.map(p => sevCntMap[p].med);
-  sevChartInst.data.datasets[3].data = orderedProvs.map(p => sevCntMap[p].low);
+  sevChartInst.data.datasets[0].data = SEV_PROV_ORDER.map(p => sevCntMap[p].crit);
+  sevChartInst.data.datasets[1].data = SEV_PROV_ORDER.map(p => sevCntMap[p].high);
+  sevChartInst.data.datasets[2].data = SEV_PROV_ORDER.map(p => sevCntMap[p].med);
+  sevChartInst.data.datasets[3].data = SEV_PROV_ORDER.map(p => sevCntMap[p].low);
   sevChartInst.update();
 
   // Update alert box
@@ -1231,7 +1232,7 @@ function parseRawInterference(data, wkLabel) {
   const newRows = [];
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
-    if (String(row[idxWEEK]) !== latestWk) continue;
+    if (String(row[idxWEEK]).trim() !== latestWk) continue;
     if (idxNBTC >= 0 && parseInt(row[idxNBTC]) !== 16) continue;
     const prov = String(row[idxProv] || '').trim();
     if (!PROV16.includes(prov)) continue;
@@ -1278,11 +1279,10 @@ function parseRawInterference(data, wkLabel) {
   const sevCntMap = {};
   PROV16.forEach(p => { sevCntMap[p] = {crit:0, high:0, med:0, low:0}; });
   newRows.forEach(r => { if (sevCntMap[r.prov]) sevCntMap[r.prov][r.sev]++; });
-  const orderedProvs = ['สมุทรสาคร','นครปฐม','ราชบุรี','เพชรบุรี','สมุทรสงคราม'];
-  sevChartInst.data.datasets[0].data = orderedProvs.map(p => sevCntMap[p].crit);
-  sevChartInst.data.datasets[1].data = orderedProvs.map(p => sevCntMap[p].high);
-  sevChartInst.data.datasets[2].data = orderedProvs.map(p => sevCntMap[p].med);
-  sevChartInst.data.datasets[3].data = orderedProvs.map(p => sevCntMap[p].low);
+  sevChartInst.data.datasets[0].data = SEV_PROV_ORDER.map(p => sevCntMap[p].crit);
+  sevChartInst.data.datasets[1].data = SEV_PROV_ORDER.map(p => sevCntMap[p].high);
+  sevChartInst.data.datasets[2].data = SEV_PROV_ORDER.map(p => sevCntMap[p].med);
+  sevChartInst.data.datasets[3].data = SEV_PROV_ORDER.map(p => sevCntMap[p].low);
   sevChartInst.update();
 
   // Update alert box

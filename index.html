@@ -617,14 +617,14 @@ function renderTableRows(rows) {
   }
 
   document.getElementById('cellBody').innerHTML = rows.map((r, i) => `
-    <tr data-sev="${r.sev}" data-prov="${r.prov}">
+    <tr data-sev="${r.sev}" data-prov="${escapeHtml(r.prov)}">
       <td style="color:#64748B">${i+1}</td>
-      <td style="font-weight:700;color:${PCOL[r.prov]||'#E2E8F0'}">${r.prov}</td>
-      <td style="font-family:monospace;color:#94A3B8">${r.code}</td>
-      <td>${r.name}</td>
-      <td style="font-family:monospace;font-size:11px;color:#CBD5E1">${r.cell}</td>
-      <td style="color:#94A3B8">${r.amph}</td>
-      <td>${SEV_LABEL[r.sev]||r.sev}</td>
+      <td style="font-weight:700;color:${PCOL[r.prov]||'#E2E8F0'}">${escapeHtml(r.prov)}</td>
+      <td style="font-family:monospace;color:#94A3B8">${escapeHtml(r.code)}</td>
+      <td>${escapeHtml(r.name)}</td>
+      <td style="font-family:monospace;font-size:11px;color:#CBD5E1">${escapeHtml(r.cell)}</td>
+      <td style="color:#94A3B8">${escapeHtml(r.amph)}</td>
+      <td>${SEV_LABEL[r.sev]||escapeHtml(r.sev)}</td>
       <td style="text-align:right">${getInfHtml(r.inf)}</td>
       <td style="text-align:right;color:#64748B">${r.inf2.toFixed(2)}</td>
     </tr>`).join('');
@@ -642,7 +642,9 @@ function syncTabCounts(rows) {
   document.querySelectorAll('.ftab').forEach(tab => {
     const f = tab.dataset.filter;
     if (cnt[f] !== undefined) {
-      tab.textContent = tab.textContent.replace(/\s*\(\d+\)/, '') + ` (${cnt[f]})`;
+      // Cache original label on first call to avoid regex-based corruption on repeated calls
+      if (!tab.dataset.originalLabel) tab.dataset.originalLabel = tab.textContent;
+      tab.textContent = tab.dataset.originalLabel + ` (${cnt[f]})`;
     }
   });
 }
@@ -659,8 +661,8 @@ function updateCellTrend(newRows, wkLabel) {
   newRows.forEach(r => { if (countByProv[r.prov] !== undefined) countByProv[r.prov]++; });
 
   cellTrendInst.data.labels.push(wkLabel);
-  cellTrendInst.data.datasets.forEach((ds, i) => {
-    ds.data.push(countByProv[PROV16[i]] || 0);
+  cellTrendInst.data.datasets.forEach(ds => {
+    ds.data.push(countByProv[ds.label] || 0);
   });
   cellTrendInst.update();
 }
@@ -812,9 +814,11 @@ function saveState(fileName) {
       wkBadge:       document.getElementById('wkBadge').textContent,
       alertBody:     document.getElementById('alertBody').innerHTML,
       footerTxt:     document.getElementById('footerTxt').textContent,
-      trendLabels:   trendChartInst.data.labels.slice(),
-      trendDatasets: trendChartInst.data.datasets.map(d => d.data.slice()),
-      sevDatasets:   sevChartInst.data.datasets.map(d => d.data.slice()),
+      trendLabels:     trendChartInst.data.labels.slice(),
+      trendDatasets:   trendChartInst.data.datasets.map(d => d.data.slice()),
+      sevDatasets:     sevChartInst.data.datasets.map(d => d.data.slice()),
+      cellTrendLabels: cellTrendInst.data.labels.slice(),
+      cellTrendData:   cellTrendInst.data.datasets.map(d => d.data.slice()),
       savedAt: new Date().toLocaleString('th-TH'),
     };
     localStorage.setItem(LS_KEY, JSON.stringify(state));
@@ -853,6 +857,13 @@ function restoreState() {
       if (sevChartInst.data.datasets[i]) sevChartInst.data.datasets[i].data = d;
     });
     sevChartInst.update();
+
+    // Restore cell trend chart
+    if (s.cellTrendLabels) cellTrendInst.data.labels = s.cellTrendLabels;
+    if (s.cellTrendData) s.cellTrendData.forEach((d,i) => {
+      if (cellTrendInst.data.datasets[i]) cellTrendInst.data.datasets[i].data = d;
+    });
+    cellTrendInst.update();
 
     // Restore % Fixed chart
     if (s.pfData && s.pfData.length > 0) {
@@ -1029,14 +1040,16 @@ function parseStatusOverall(data, wkLabel) {
   const normLbl = latestLbl.toLowerCase();
   if (!existingLabels.some(l => String(l).toLowerCase().replace(/\n.*/,'') === normLbl)) {
     trendChartInst.data.labels.push(latestLbl);
-    // Datasets: 0-4 = provinces, last = total
+    // Append province data by matching dataset label; last dataset is total
     let total = 0;
-    PROV16.forEach((prov, di) => {
-      const v = newCounts[prov] || 0;
-      trendChartInst.data.datasets[di].data.push(v);
+    trendChartInst.data.datasets.forEach(ds => {
+      if (ds.label === 'รวมเขต 16') return;
+      const v = newCounts[ds.label] || 0;
+      ds.data.push(v);
       total += v;
     });
-    trendChartInst.data.datasets[PROV16.length].data.push(total);
+    const totalDs = trendChartInst.data.datasets.find(ds => ds.label === 'รวมเขต 16');
+    if (totalDs) totalDs.data.push(total);
     trendChartInst.update();
   }
 

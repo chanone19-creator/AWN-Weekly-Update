@@ -443,6 +443,7 @@ Chart.defaults.borderColor = '#1E293B';
 const G = '#1E3A5F';
 
 function escapeHtml(str) {
+  if (str == null) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -979,7 +980,7 @@ function processExcel(file) {
           'กสทช. เขต 16 | NR2600 Interference Tracking | AWN BR288-2568 | อัปเดตจาก ' + file.name;
         const saved = saveState(file.name);
         showStatus('✅ อัปเดต Dashboard จากไฟล์ ' + file.name +
-          (saved ? ' สำเร็จ! (บันทึก Cache แล้ว)' : ' สำเร็จ! ⚠️ ไม่สามารถบันทึก Cache ได้'), saved);
+          (saved ? ' สำเร็จ! (บันทึก Cache แล้ว)' : ' สำเร็จ! (⚠️ Cache ไม่ได้บันทึก — พื้นที่เก็บข้อมูลเต็ม)'), true);
       } else {
         showStatus('⚠️ ไม่พบ Sheet ที่รู้จัก (ต้องการ "Raw.Interference" / "Status Overall") ใน ' + file.name, false);
       }
@@ -1006,7 +1007,7 @@ function parseStatusOverall(data, wkLabel) {
       hRow = r;
       row.forEach((c, ci) => { if (/wk\d+/i.test(c)) weekCols[ci] = c; });
       for (let c = 0; c < 6; c++) {
-        if (data.slice(r+1, r+20).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
+        if (data.slice(r+1, r+50).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
           provCol = c; break;
         }
       }
@@ -1019,7 +1020,7 @@ function parseStatusOverall(data, wkLabel) {
       hRow = r;
       row.forEach((c, ci) => { if (/sum of .+?\(site\)/i.test(c)) weekCols[ci] = c; });
       for (let c = 0; c < 6; c++) {
-        if (data.slice(r+1, r+20).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
+        if (data.slice(r+1, r+50).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
           provCol = c; break;
         }
       }
@@ -1254,7 +1255,7 @@ function parseRawInterference(data, wkLabel) {
       if (cls === '-' || cls === '') continue;
     }
     const inf1 = parseFloat(String(row[idxInf1] || '').replace(/,/g, ''));
-    if (isNaN(inf1)) continue;
+    if (isNaN(inf1) || inf1 === 0) continue;
     const inf2v = idxInf2 >= 0 ? parseFloat(String(row[idxInf2] || '0').replace(/,/g, '')) : 0;
     newRows.push({
       prov,
@@ -1269,13 +1270,17 @@ function parseRawInterference(data, wkLabel) {
   }
   if (newRows.length === 0) return false;
 
+  // Build display label: prefer week number from actual data; keep year suffix from filename if present
+  const yearSuffix = wkLabel.match(/\/\d+$/)?.[0] || '';
+  const displayLabel = latestWk + yearSuffix;
+
   // Sort by INF descending (worst/highest value first = most critical)
   newRows.sort((a, b) => b.inf - a.inf);
 
   // Update active rows & table
   activeRows = newRows;
   document.getElementById('kpiCell').textContent    = newRows.length;
-  document.getElementById('kpiCellSub').textContent = 'Cell active | ' + wkLabel;
+  document.getElementById('kpiCellSub').textContent = 'Cell active | ' + displayLabel;
 
   // Count critical
   const critCount = newRows.filter(r => r.sev === 'crit').length;
@@ -1310,11 +1315,11 @@ function parseRawInterference(data, wkLabel) {
        &nbsp;— Site รุนแรงที่สุด: <strong>${escapeHtml(worst.name)} (${escapeHtml(worst.cell)}) ${escapeHtml(worst.prov)} INF = ${worst.inf.toFixed(2)} dBm</strong>`;
   } else {
     document.getElementById('alertBody').innerHTML =
-      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${escapeHtml(wkLabel)} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
+      `<strong style="color:#86EFAC">✅ ไม่พบ Cell วิกฤต (INF ≥ -90 dBm)</strong> ใน ${escapeHtml(displayLabel)} — ทุกจังหวัดอยู่ในระดับที่ยอมรับได้`;
   }
 
   // Update cell trend chart
-  updateCellTrend(newRows, wkLabel);
+  updateCellTrend(newRows, displayLabel);
 
   // Reset filter and re-render
   currentFilter = 'all';

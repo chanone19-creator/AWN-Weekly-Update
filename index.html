@@ -558,7 +558,7 @@ const SEV_LABEL = {
   crit:'<span class="sb sb-crit">🔴 วิกฤต ≥-90</span>',
   high:'<span class="sb sb-high">🟠 สูง -95~-90</span>',
   med: '<span class="sb sb-med">🟡 กลาง -100~-95</span>',
-  low: '<span class="sb sb-low">🟢 ต่ำ -105~-100</span>',
+  low: '<span class="sb sb-low">🟢 ต่ำ < -100</span>',
 };
 
 let currentFilter = 'all';
@@ -712,7 +712,7 @@ sevChartInst = new Chart(document.getElementById('sevChart'), {
       {label:'≥-90 (วิกฤต)', data:[...sevCrit], backgroundColor:'#C0392B', borderRadius:2},
       {label:'-95~-90 (สูง)', data:[...sevHigh], backgroundColor:'#E67E22', borderRadius:2},
       {label:'-100~-95 (กลาง)',data:[...sevMed],  backgroundColor:'#D4AC0D', borderRadius:2},
-      {label:'-105~-100 (ต่ำ)', data:[...sevLow], backgroundColor:'#2ECC71', borderRadius:2},
+      {label:'< -100 (ต่ำ)',     data:[...sevLow], backgroundColor:'#2ECC71', borderRadius:2},
     ]
   },
   options:{
@@ -1206,7 +1206,8 @@ function parsePriority(data, wkLabel) {
   currentSearch  = '';
   document.getElementById('searchBox').value = '';
   document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
-  document.querySelector('[data-filter="all"]').classList.add('active');
+  const allTabPr = document.querySelector('[data-filter="all"]');
+  if (allTabPr) allTabPr.classList.add('active');
   applyFiltersAndSearch();
 
   return true;
@@ -1326,7 +1327,8 @@ function parseRawInterference(data, wkLabel) {
   currentSearch  = '';
   document.getElementById('searchBox').value = '';
   document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
-  document.querySelector('[data-filter="all"]').classList.add('active');
+  const allTabRaw = document.querySelector('[data-filter="all"]');
+  if (allTabRaw) allTabRaw.classList.add('active');
   applyFiltersAndSearch();
 
   return true;

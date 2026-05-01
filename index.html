@@ -459,7 +459,7 @@ const wkLabels = [
   "Nov W2","Nov W3","Nov W4","Dec W1","Dec W2",
   "Dec W3","Dec W4","Jan W1\n'69","Jan W2","Jan W3",
   "Jan W4","Feb W1","Feb W2","Feb W3","Feb W4",
-  "Mar W1","Mar W2","Mar W3","Mar W4\n(wk12)"
+  "Mar W1","Mar W2","Mar W3","Mar W4\n(wk12)","Apr W1\n(wk13)"
 ];
 
 const site16 = {
@@ -982,7 +982,7 @@ function processExcel(file) {
         showStatus('✅ อัปเดต Dashboard จากไฟล์ ' + file.name +
           (saved ? ' สำเร็จ! (บันทึก Cache แล้ว)' : ' สำเร็จ! (⚠️ Cache ไม่ได้บันทึก — พื้นที่เก็บข้อมูลเต็ม)'), true);
       } else {
-        showStatus('⚠️ ไม่พบ Sheet ที่รู้จัก (ต้องการ "Raw.Interference" / "Status Overall") ใน ' + file.name, false);
+        showStatus('⚠️ ไม่พบ Sheet ที่รู้จัก (ต้องการ "Raw.Interference", "Priority" หรือ "Status Overall") ใน ' + file.name, false);
       }
     } catch(err) {
       showStatus('❌ เกิดข้อผิดพลาด: ' + err.message, false);
@@ -1006,7 +1006,7 @@ function parseStatusOverall(data, wkLabel) {
     if (weekIdx >= 0) {
       hRow = r;
       row.forEach((c, ci) => { if (/wk\d+/i.test(c)) weekCols[ci] = c; });
-      for (let c = 0; c < 6; c++) {
+      for (let c = 0; c < Math.min(row.length, 20); c++) {
         if (data.slice(r+1, r+50).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
           provCol = c; break;
         }
@@ -1019,7 +1019,7 @@ function parseStatusOverall(data, wkLabel) {
     if (sumIdx >= 0) {
       hRow = r;
       row.forEach((c, ci) => { if (/sum of .+?\(site\)/i.test(c)) weekCols[ci] = c; });
-      for (let c = 0; c < 6; c++) {
+      for (let c = 0; c < Math.min(row.length, 20); c++) {
         if (data.slice(r+1, r+50).some(row2 => PROV16.includes(String(row2[c]).trim()))) {
           provCol = c; break;
         }
@@ -1053,8 +1053,11 @@ function parseStatusOverall(data, wkLabel) {
 
   // ── Append new week to trend chart (avoid duplicate)
   const existingLabels = trendChartInst.data.labels;
-  const normLbl = latestLbl.toLowerCase();
-  if (!existingLabels.some(l => String(l).toLowerCase().replace(/\n.*/,'') === normLbl)) {
+  const normLbl = latestLbl.toLowerCase().replace(/\n.*/,'');
+  if (!existingLabels.some(l => {
+    const s = String(l).toLowerCase();
+    return s.replace(/\n.*/,'') === normLbl || s.includes('(' + normLbl + ')');
+  })) {
     trendChartInst.data.labels.push(latestLbl);
     // Append province data by matching dataset label; last dataset is total
     let total = 0;

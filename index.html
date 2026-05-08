@@ -1207,6 +1207,28 @@ function parsePriority(data, wkLabel) {
   // Update cell trend chart
   updateCellTrend(newRows, wkLabel);
 
+  // Update % Fixed chart & remain/fixed KPIs using unique site codes per province
+  const siteCntsPr = {};
+  PROV16.forEach(p => { siteCntsPr[p] = new Set(); });
+  newRows.forEach(r => { if (siteCntsPr[r.prov]) siteCntsPr[r.prov].add(r.code); });
+  pfData = PROV16.map(prov => ({
+    name: prov, ref: REF16[prov],
+    curr: siteCntsPr[prov].size,
+    pct:  ((REF16[prov] - siteCntsPr[prov].size) / REF16[prov] * 100),
+  })).sort((a,b) => b.pct - a.pct);
+  fixedChartInst.data.labels = pfData.map(d => d.name);
+  fixedChartInst.data.datasets[0].data = pfData.map(d => d.pct);
+  fixedChartInst.data.datasets[0].backgroundColor = pfData.map(d =>
+    d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946');
+  fixedChartInst.update();
+  const remainPr = PROV16.reduce((s,p) => s + siteCntsPr[p].size, 0);
+  const fixedPr  = REF_TOTAL - remainPr;
+  document.getElementById('kpiRemain').textContent    = remainPr;
+  document.getElementById('kpiFixed').textContent     = ((fixedPr / REF_TOTAL)*100).toFixed(1) + '%';
+  document.getElementById('kpiFixedSub').textContent  = fixedPr + ' Site แก้ไขแล้ว';
+  document.getElementById('kpiRemainSub').textContent = ((remainPr/REF_TOTAL)*100).toFixed(1) + '% ของ ref | ' + wkLabel;
+  document.getElementById('wkBadge').textContent      = '📅 ' + wkLabel;
+
   // Reset filter and re-render
   currentFilter = 'all';
   currentSearch  = '';
@@ -1232,7 +1254,7 @@ function parseRawInterference(data, wkLabel) {
   const idxAmph  = hdr.findIndex(c => c.includes('amphur') || c.includes('amphoe') || c.includes('อำเภอ'));
   const idxProv  = hdr.findIndex(c => c === 'province' || c === 'จังหวัด');
   const idxNBTC  = hdr.findIndex(c => c === 'nbtc');
-  const idxInf1  = hdr.findIndex(c => c.includes('prb0-30') || (c.includes('prb0') && !c.includes('prb0-30')));
+  const idxInf1  = hdr.findIndex(c => c.includes('prb0-30') || c.includes('prb0_30') || (c.includes('prb0') && !c.includes('prb0-30') && !c.includes('prb0_30')));
   const idxInf2  = hdr.findIndex(c => c.includes('prb65-105') || c.includes('prb65'));
   const idxInterf = hdr.findIndex(c => c === 'interference');
 
@@ -1327,6 +1349,28 @@ function parseRawInterference(data, wkLabel) {
 
   // Update cell trend chart
   updateCellTrend(newRows, displayLabel);
+
+  // Update % Fixed chart & remain/fixed KPIs using unique site codes per province
+  const siteCntsRaw = {};
+  PROV16.forEach(p => { siteCntsRaw[p] = new Set(); });
+  newRows.forEach(r => { if (siteCntsRaw[r.prov]) siteCntsRaw[r.prov].add(r.code); });
+  pfData = PROV16.map(prov => ({
+    name: prov, ref: REF16[prov],
+    curr: siteCntsRaw[prov].size,
+    pct:  ((REF16[prov] - siteCntsRaw[prov].size) / REF16[prov] * 100),
+  })).sort((a,b) => b.pct - a.pct);
+  fixedChartInst.data.labels = pfData.map(d => d.name);
+  fixedChartInst.data.datasets[0].data = pfData.map(d => d.pct);
+  fixedChartInst.data.datasets[0].backgroundColor = pfData.map(d =>
+    d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946');
+  fixedChartInst.update();
+  const remainRaw = PROV16.reduce((s,p) => s + siteCntsRaw[p].size, 0);
+  const fixedRaw  = REF_TOTAL - remainRaw;
+  document.getElementById('kpiRemain').textContent    = remainRaw;
+  document.getElementById('kpiFixed').textContent     = ((fixedRaw / REF_TOTAL)*100).toFixed(1) + '%';
+  document.getElementById('kpiFixedSub').textContent  = fixedRaw + ' Site แก้ไขแล้ว';
+  document.getElementById('kpiRemainSub').textContent = ((remainRaw/REF_TOTAL)*100).toFixed(1) + '% ของ ref | ' + displayLabel;
+  document.getElementById('wkBadge').textContent      = '📅 ' + displayLabel;
 
   // Reset filter and re-render
   currentFilter = 'all';

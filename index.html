@@ -785,11 +785,25 @@ function saveState(fileName) {
       trendLabels:   trendChartInst.data.labels.slice(),
       trendDatasets: trendChartInst.data.datasets.map(d => d.data.slice()),
       sevDatasets:   sevChartInst.data.datasets.map(d => d.data.slice()),
+      cellLabels:    cellTrendInst.data.labels.slice(),
+      cellDatasets:  cellTrendInst.data.datasets.map(d => d.data.slice()),
       savedAt: new Date().toLocaleString('th-TH'),
     };
-    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    const payload = JSON.stringify(state);
+    // เตือนเมื่อ payload ใหญ่เกิน 3 MB (ใกล้ limit 5MB ของ localStorage หลายเบราว์เซอร์)
+    if (payload.length > 3_000_000) {
+      console.warn('⚠️ Cache ขนาด ' + (payload.length/1024/1024).toFixed(1) + ' MB ใกล้เต็ม localStorage');
+    }
+    localStorage.setItem(LS_KEY, payload);
   } catch(e) {
     console.warn('⚠️ localStorage save failed:', e);
+    if (e && e.name === 'QuotaExceededError') {
+      const el = document.getElementById('uploadStatus');
+      if (el) {
+        el.textContent = '⚠️ localStorage เต็ม — ข้อมูลจะหายเมื่อปิดหน้าเว็บ (กดล้างแคชเพื่อแก้)';
+        el.className = 'upload-status warn';
+      }
+    }
   }
 }
 
@@ -823,6 +837,13 @@ function restoreState() {
       if (sevChartInst.data.datasets[i]) sevChartInst.data.datasets[i].data = d;
     });
     sevChartInst.update();
+
+    // Restore cell trend chart
+    if (s.cellLabels)   cellTrendInst.data.labels = s.cellLabels;
+    if (s.cellDatasets) s.cellDatasets.forEach((d,i) => {
+      if (cellTrendInst.data.datasets[i]) cellTrendInst.data.datasets[i].data = d;
+    });
+    cellTrendInst.update();
 
     // Restore % Fixed chart
     if (s.pfData && s.pfData.length > 0) {
@@ -1033,6 +1054,20 @@ function parseStatusOverall(data, wkLabel) {
   fixedChartInst.data.datasets[0].backgroundColor = pfData.map(d =>
     d.pct>=50?'#2A9D8F':d.pct>=35?'#2EC4B6':d.pct>=25?'#F4A261':'#E63946');
   fixedChartInst.update();
+
+  // ── Append latest week to Cell Active trend (กันซ้ำ + เก็บไม่เกิน 8 จุด)
+  const cellLabels = cellTrendInst.data.labels;
+  const normLbl2 = String(latestLbl).toLowerCase().replace(/\n.*/,'');
+  if (!cellLabels.some(l => String(l).toLowerCase().replace(/\n.*/,'') === normLbl2)) {
+    cellLabels.push(latestLbl);
+    cellTrendInst.data.datasets.forEach(ds => {
+      const v = newCounts[ds.label] || 0;
+      ds.data.push(v);
+      if (ds.data.length > 8) ds.data.shift();
+    });
+    if (cellLabels.length > 8) cellLabels.shift();
+    cellTrendInst.update();
+  }
 
   return true;
 }
